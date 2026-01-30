@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book Quality Editor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1a1a2e;--bg2:#16213e;--bg3:#0f3460;--accent:#e94560;--accent2:#533483;--text:#eee;--text2:#aaa;--text3:#777;--green:#4ecca3;--yellow:#f0c040;--blue:#4ea8de;--red:#e94560;--border:#2a2a4a}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:var(--bg2);padding:10px 20px;display:flex;align-items:center;gap:15px;border-bottom:1px solid var(--border);flex-shrink:0}
+header h1{font-size:1.2em;color:var(--accent);white-space:nowrap}
+.stats{display:flex;gap:12px;font-size:.85em;margin-left:auto}
+.stat{padding:4px 10px;border-radius:12px;background:var(--bg3);white-space:nowrap}
+.stat.errors{border:1px solid var(--red)}.stat.fixed{border:1px solid var(--green)}.stat.remaining{border:1px solid var(--yellow)}
+.toolbar{display:flex;gap:8px}
+.btn{padding:6px 14px;border:1px solid var(--border);background:var(--bg3);color:var(--text);border-radius:6px;cursor:pointer;font-size:.85em;transition:.2s}
+.btn:hover{background:var(--accent2);border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent)}
+.btn.primary:hover{background:#c33050}
+.btn.green{background:var(--green);color:#111;border-color:var(--green)}
+.main{display:flex;flex:1;overflow:hidden}
+.editor-panel{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);min-width:0}
+.editor-wrap{flex:1;display:flex;overflow:hidden;position:relative}
+.line-numbers{width:50px;background:var(--bg2);color:var(--text3);font:13px/1.6 'Cascadia Code','Fira Code',monospace;padding:10px 8px 10px 0;text-align:right;overflow:hidden;user-select:none;flex-shrink:0}
+#editor{flex:1;background:var(--bg);color:var(--text);border:none;outline:none;resize:none;font:13px/1.6 'Cascadia Code','Fira Code',monospace;padding:10px;overflow-y:auto;tab-size:4;white-space:pre-wrap;word-wrap:break-word}
+.issues-panel{width:420px;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.issues-header{padding:10px 15px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.issues-header h2{font-size:1em;flex:1}
+.filter-btns{display:flex;gap:4px}
+.filter-btn{padding:2px 8px;border-radius:10px;font-size:.75em;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2)}
+.filter-btn.active{background:var(--bg3);color:var(--text);border-color:var(--accent)}
+.issues-list{flex:1;overflow-y:auto;padding:8px}
+.issue-group{margin-bottom:12px}
+.issue-group-header{font-size:.8em;color:var(--text2);padding:4px 8px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;background:var(--bg);z-index:1}
+.issue{padding:8px 10px;margin:3px 0;border-radius:6px;background:var(--bg2);border-left:3px solid var(--border);cursor:pointer;font-size:.85em;transition:.15s}
+.issue:hover{background:var(--bg3)}
+.issue.selected{background:var(--bg3);border-left-color:var(--accent)}
+.issue.error{border-left-color:var(--red)}.issue.warning{border-left-color:var(--yellow)}.issue.info{border-left-color:var(--blue)}
+.issue-title{font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.issue-badge{font-size:.7em;padding:1px 6px;border-radius:8px;text-transform:uppercase}
+.error .issue-badge{background:var(--red);color:#fff}
+.warning .issue-badge{background:var(--yellow);color:#111}
+.info .issue-badge{background:var(--blue);color:#fff}
+.issue-context{color:var(--text2);font-size:.9em;margin:4px 0}
+.issue-context mark{background:var(--accent);color:#fff;border-radius:2px;padding:0 2px}
+.issue-suggestion{color:var(--green);font-size:.9em;margin:2px 0}
+.issue-actions{display:flex;gap:6px;margin-top:6px}
+.issue-actions .btn{padding:3px 10px;font-size:.8em}
+.drop-overlay{position:fixed;inset:0;background:rgba(26,26,46,.9);display:none;align-items:center;justify-content:center;z-index:100;font-size:1.5em;color:var(--accent);border:3px dashed var(--accent);margin:20px;border-radius:12px}
+.drop-overlay.show{display:flex}
+.shortcuts{font-size:.75em;color:var(--text3);padding:6px 15px;background:var(--bg2);border-top:1px solid var(--border)}
+.shortcuts kbd{background:var(--bg3);padding:1px 5px;border-radius:3px;border:1px solid var(--border);font-family:inherit}
+.highlight-overlay{position:absolute;pointer-events:none;background:rgba(233,69,96,.15);border:1px solid var(--accent);border-radius:2px}
+.empty-state{padding:40px 20px;text-align:center;color:var(--text3)}
+.empty-state p{margin:8px 0}
+.progress-bar-wrap{display:none;padding:12px 20px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.progress-bar-wrap.show{display:block}
+.progress-label{font-size:.85em;color:var(--text2);margin-bottom:6px}
+.progress-track{height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px;transition:width .3s ease}
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 Book Quality Editor</h1>
+  <div class="toolbar">
+    <label class="btn" id="uploadBtn">📂 Open .md<input type="file" accept=".md,.txt,.markdown" hidden id="fileInput"></label>
+    <button class="btn primary" id="analyzeBtn">🔍 Analyze</button>
+    <button class="btn green" id="exportBtn">💾 Export</button>
+  </div>
+  <div class="stats">
+    <span class="stat errors" id="statTotal">Issues: 0</span>
+    <span class="stat fixed" id="statFixed">Fixed: 0</span>
+    <span class="stat remaining" id="statRemaining">Remaining: 0</span>
+  </div>
+</header>
+<div class="progress-bar-wrap" id="progressWrap"><div class="progress-label" id="progressLabel">Loading...</div><div class="progress-track"><div class="progress-fill" id="progressFill"></div></div></div>
+<div class="main">
+  <div class="editor-panel">
+    <div class="editor-wrap">
+      <div class="line-numbers" id="lineNums"></div>
+      <textarea id="editor" placeholder="Paste or drop your markdown text here, or use Open .md to load a file..."></textarea>
+    </div>
+  </div>
+  <div class="issues-panel">
+    <div class="issues-header">
+      <h2>Issues</h2>
+      <div class="filter-btns">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="error">Errors</button>
+        <button class="filter-btn" data-filter="warning">Warnings</button>
+        <button class="filter-btn" data-filter="info">Info</button>
+      </div>
+    </div>
+    <div class="issues-list" id="issuesList">
+      <div class="empty-state"><p>📝 Paste or load a markdown file</p><p>Then click <strong>Analyze</strong> to find issues</p></div>
+    </div>
+    <div class="shortcuts">
+      <kbd>↑</kbd><kbd>↓</kbd> Navigate &nbsp; <kbd>Enter</kbd> Fix &nbsp; <kbd>Del</kbd> Ignore &nbsp; <kbd>Shift+Del</kbd> Ignore All
+    </div>
+  </div>
+</div>
+<div class="drop-overlay" id="dropOverlay">📂 Drop your .md file here</div>
+
+<script>
+// ====== STATE ======
+let issues = [];
+let selectedIdx = -1;
+let fixedCount = 0;
+let currentFilter = 'all';
+const ignored = new Set();
+const ignoredTypes = new Set();
+
+// ====== COMMON LIGATURE BREAKS ======
+// Words commonly broken by missing ligatures (ff, fi, fl, ffi, ffl)
+const LIGATURE_WORDS = {
+  // ff breaks
+  'di erent':'different','di erence':'difference','di erences':'differences','di erently':'differently',
+  'e ect':'effect','e ective':'effective','e ectively':'effectively','e ects':'effects',
+  'e ort':'effort','e orts':'efforts','o er':'offer','o ered':'offered','o ering':'offering',
+  'o ers':'offers','o ice':'office','o icer':'officer','o icers':'officers','o ices':'offices',
+  'o icial':'official','o icially':'officially','o icials':'officials',
+  'a ect':'affect','a ected':'affected','a ecting':'affecting','a ects':'affects',
+  'a air':'affair','a airs':'affairs','a ord':'afford','a ordable':'affordable',
+  'a irm':'affirm','a irmed':'affirmed','su er':'suffer','su ered':'suffered',
+  'su ering':'suffering','su ers':'suffers','su icient':'sufficient','su iciently':'sufficiently',
+  'sti ':'stiff','sti en':'stiffen','sti ly':'stiffly','cli ':'cliff','cli s':'cliffs',
+  'co ee':'coffee','to ee':'toffee','sca old':'scaffold','shu le':'shuffle',
+  'ba le':'baffle','ba led':'baffled','ra le':'raffle','wa le':'waffle',
+  'a luent':'affluent','a liate':'affiliate','a liated':'affiliated',
+  // fi breaks — only fragments that aren't real words
+  'de ne':'define','de ned':'defined','de ning':'defining','de nition':'definition',
+  'de nite':'definite','de nitely':'definitely','de nitions':'definitions',
+  ' nding':'finding',' ndings':'findings',
+  ' nally':'finally',' nish':'finish',' nished':'finished',
+  ' rst':'first',
+  ' elds':'fields',' ght':'fight',' ghting':'fighting',
+  ' gure':'figure',' gured':'figured',' gures':'figures',
+  ' lled':'filled',
+  ' lms':'films',' lter':'filter',' ltered':'filtered',
+  'bene t':'benefit','bene ts':'benefits','bene ted':'benefited',
+  'con dence':'confidence','con dent':'confident','con rm':'confirm',
+  'con rmed':'confirmed','speci c':'specific','speci cally':'specifically',
+  'signi cant':'significant','signi cantly':'significantly','signi cance':'significance',
+  'magni cent':'magnificent','certi cate':'certificate',
+  // fl breaks — only fragments that aren't real words
+  ' oor':'floor',' oors':'floors',' owing':'flowing',
+  ' ows':'flows',' ying':'flying',
+  ' ags':'flags',' ame':'flame',' ames':'flames',
+  ' ashed':'flashed',
+  ' esh':'flesh',' ight':'flight',' ights':'flights',' oat':'float',
+  ' ood':'flood',' ooded':'flooded',' oods':'floods',
+  'in uence':'influence','in uenced':'influenced','in uences':'influences',
+  'in ation':'inflation','re ect':'reflect','re ected':'reflected',
+  're ection':'reflection','con ict':'conflict','con icts':'conflicts',
+  // ffi breaks
+  'di cult':'difficult','di culty':'difficulty','di culties':'difficulties',
+  'e cient':'efficient','e ciency':'efficiency','e ciently':'efficiently',
+  'o ce':'office','o cer':'officer','o cial':'official','o cials':'officials',
+  'o cially':'officially','su cient':'sufficient','su ciently':'sufficiently',
+  'insu cient':'insufficient','a liate':'affiliate','a liated':'affiliated',
+  'a rmative':'affirmative',
+  // ffl breaks  
+  'ba ed':'baffled','ra e':'raffle','shu e':'shuffle','sco ed':'scoffled',
+};
+
+// ====== SPELLING via Typo.js ======
+let typoInstance = null;
+let typoLoading = false;
+let typoReady = false;
+
+async function loadTypo() {
+  if (typoReady || typoLoading) return;
+  typoLoading = true;
+  try {
+    // Load Typo.js library
+    if (typeof Typo === 'undefined') {
+      await loadScript('https://cdn.jsdelivr.net/npm/typo-js@1.2.4/typo.js');
+    }
+    // Load dictionary files
+    const [aff, dic] = await Promise.all([
+      fetch('https://cdn.jsdelivr.net/npm/dictionary-en@4.0.0/index.aff').then(r => r.text()),
+      fetch('https://cdn.jsdelivr.net/npm/dictionary-en@4.0.0/index.dic').then(r => r.text())
+    ]);
+    typoInstance = new Typo('en_US', aff, dic);
+    typoReady = true;
+  } catch(e) {
+    console.error('Failed to load Typo.js:', e);
+  }
+  typoLoading = false;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// Start loading immediately
+loadTypo();
+
+// ====== ANALYSIS ENGINE (async, non-blocking) ======
+const yieldToUI = () => new Promise(r => setTimeout(r, 0));
+
+async function analyzeText(text, onProgress) {
+  const found = [];
+  const lines = text.split('\n');
+  let id = 0;
+  const CHUNK = 200; // yield every N lines
+
+  function add(cat, severity, line, col, len, msg, suggestion) {
+    found.push({ id: id++, category: cat, severity, line, col, length: len, message: msg, suggestion, fixed: false });
+  }
+
+  // 1. Ligature detection
+  onProgress('Checking ligature breaks…', 5);
+  await yieldToUI();
+  const ligEntries = Object.entries(LIGATURE_WORDS);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (const [broken, fixed] of ligEntries) {
+      const re = new RegExp('(?:^|\\b|\\s)(' + broken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?:\\b|\\s|$|[.,;:!?])', 'gi');
+      let m;
+      while ((m = re.exec(line)) !== null) {
+        const idx = line.toLowerCase().indexOf(broken.toLowerCase(), m.index);
+        if (idx >= 0) {
+          add('Ligature Break', 'error', i + 1, idx + 1, broken.length,
+            `Broken ligature: "${broken}" → "${fixed}"`, fixed);
+        }
+      }
+    }
+    if (i % CHUNK === 0) { onProgress('Checking ligature breaks…', 5 + (i/lines.length)*8); await yieldToUI(); }
+  }
+
+  // 2. Repeated words
+  onProgress('Checking repeated words…', 15);
+  await yieldToUI();
+  for (let i = 0; i < lines.length; i++) {
+    const re = /\b(\w{2,})\s+\1\b/gi;
+    let m;
+    while ((m = re.exec(lines[i])) !== null) {
+      add('Repeated Word', 'error', i + 1, m.index + 1, m[0].length,
+        `Repeated word: "${m[1]} ${m[1]}"`, m[1]);
+    }
+  }
+
+  // 3. Quote consistency
+  onProgress('Checking quote consistency…', 22);
+  await yieldToUI();
+  let hasStraight = false, hasCurly = false;
+  for (const line of lines) {
+    if (/["""]/.test(line)) {
+      if (/\u201c|\u201d/.test(line)) hasCurly = true;
+      if (/"/.test(line)) hasStraight = true;
+    }
+  }
+  if (hasStraight && hasCurly) {
+    for (let i = 0; i < lines.length; i++) {
+      let idx = -1;
+      while ((idx = lines[i].indexOf('"', idx + 1)) !== -1) {
+        add('Quote Consistency', 'warning', i + 1, idx + 1, 1,
+          'Mixed straight and curly quotes. Prefer curly quotes.', null);
+      }
+    }
+  }
+
+  // 4. Unclosed quotes
+  onProgress('Checking unclosed quotes…', 30);
+  await yieldToUI();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const straightCount = (line.match(/"/g) || []).length;
+    if (straightCount % 2 !== 0) {
+      add('Unclosed Quote', 'warning', i + 1, 1, line.length,
+        'Possible unclosed quote on this line.', null);
+    }
+    const opens = (line.match(/\u201c/g) || []).length;
+    const closes = (line.match(/\u201d/g) || []).length;
+    if (opens !== closes) {
+      const nextLine = lines[i + 1] || '';
+      const nextOpens = (nextLine.match(/\u201c/g) || []).length;
+      if (opens > closes && nextOpens === 0) {
+        add('Unclosed Quote', 'warning', i + 1, 1, line.length,
+          `Unclosed curly quote (${opens} open, ${closes} close).`, null);
+      }
+    }
+  }
+
+  // 5. Dash consistency
+  onProgress('Checking dash consistency…', 38);
+  await yieldToUI();
+  let hasEmDash = false, hasEnDash = false, hasDoubleDash = false;
+  for (const line of lines) {
+    if (/\u2014/.test(line)) hasEmDash = true;
+    if (/\u2013/.test(line)) hasEnDash = true;
+    if (/(?<!\-)--(?!\-)/.test(line)) hasDoubleDash = true;
+  }
+  if ((hasEmDash ? 1 : 0) + (hasEnDash ? 1 : 0) + (hasDoubleDash ? 1 : 0) > 1) {
+    for (let i = 0; i < lines.length; i++) {
+      let m;
+      if (hasEmDash) {
+        const re = /(?<!-)--(?!-)/g;
+        while ((m = re.exec(lines[i])) !== null) {
+          add('Dash Consistency', 'warning', i + 1, m.index + 1, 2,
+            'Double-dash found; use em dash (—) for consistency.', '—');
+        }
+      }
+      if (hasEmDash) {
+        const re2 = /\w\s*\u2013\s*\w/g;
+        while ((m = re2.exec(lines[i])) !== null) {
+          add('Dash Consistency', 'info', i + 1, m.index + 2, 1,
+            'En dash (–) used where em dash (—) may be intended.', null);
+        }
+      }
+    }
+  }
+
+  // 6. Dialogue punctuation
+  onProgress('Checking dialogue punctuation…', 45);
+  await yieldToUI();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let m;
+    const re1 = /["'\u201d]([.,])/g;
+    while ((m = re1.exec(line)) !== null) {
+      add('Dialogue Punctuation', 'error', i + 1, m.index + 1, 2,
+        `Chicago Manual: Place ${m[1] === '.' ? 'period' : 'comma'} inside closing quote.`,
+        m[0][0] === '\u201d' ? m[1] + '\u201d' : m[1] + m[0][0]);
+    }
+  }
+
+  // 7. Capitalization after periods
+  onProgress('Checking capitalization…', 52);
+  await yieldToUI();
+  for (let i = 0; i < lines.length; i++) {
+    const re = /\.\s+([a-z])/g;
+    let m;
+    while ((m = re.exec(lines[i])) !== null) {
+      const before = lines[i].substring(Math.max(0, m.index - 10), m.index + 1);
+      if (/(?:Mr|Mrs|Ms|Dr|Jr|Sr|vs|etc|e\.g|i\.e|a\.m|p\.m)\./i.test(before)) continue;
+      add('Capitalization', 'warning', i + 1, m.index + m[0].length, 1,
+        `Sentence should start with capital letter after period.`,
+        m[1].toUpperCase());
+    }
+  }
+
+  // 8. Double spaces
+  onProgress('Checking spacing…', 58);
+  await yieldToUI();
+  for (let i = 0; i < lines.length; i++) {
+    const re = /  +/g;
+    let m;
+    while ((m = re.exec(lines[i])) !== null) {
+      if (m.index === 0) continue;
+      add('Double Space', 'info', i + 1, m.index + 1, m[0].length,
+        `${m[0].length} consecutive spaces found.`, ' ');
+    }
+  }
+
+  // 9. Heading structure
+  onProgress('Checking heading structure…', 64);
+  await yieldToUI();
+  let lastHeadingLevel = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const hm = lines[i].match(/^(#{1,6})\s/);
+    if (hm) {
+      const level = hm[1].length;
+      if (level > lastHeadingLevel + 1 && lastHeadingLevel > 0) {
+        add('Heading Structure', 'warning', i + 1, 1, hm[0].length,
+          `Heading jumps from H${lastHeadingLevel} to H${level}. Consider using H${lastHeadingLevel + 1}.`, null);
+      }
+      lastHeadingLevel = level;
+      const title = lines[i].substring(hm[0].length);
+      if (title && /^[a-z]/.test(title)) {
+        add('Heading Structure', 'info', i + 1, hm[0].length + 1, 1,
+          'Heading should start with a capital letter.',
+          title[0].toUpperCase());
+      }
+    }
+  }
+
+  // 10. Spelling (heaviest phase — yield frequently)
+  if (typoReady && typoInstance) {
+    onProgress('Spell checking…', 70);
+    await yieldToUI();
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^```/.test(line) || /^#+\s/.test(line)) continue;
+      const re = /\b([a-zA-Z]{3,})\b/g;
+      let m;
+      while ((m = re.exec(line)) !== null) {
+        const word = m[1];
+        if (/^[A-Z]{2,}$/.test(word)) continue;
+        if (!typoInstance.check(word) && !typoInstance.check(word.toLowerCase())) {
+          const suggestions = typoInstance.suggest(word, 3);
+          const isLigature = found.some(f => f.category === 'Ligature Break' && f.line === i + 1 && 
+            Math.abs(f.col - (m.index + 1)) < 3);
+          if (!isLigature) {
+            add('Spelling', 'error', i + 1, m.index + 1, word.length,
+              `Possible misspelling: "${word}"`,
+              suggestions.length > 0 ? suggestions[0] : null);
+          }
+        }
+      }
+      if (i % 50 === 0) {
+        onProgress(`Spell checking… (line ${i+1}/${lines.length})`, 70 + (i/lines.length)*25);
+        await yieldToUI();
+      }
+    }
+  }
+
+  onProgress('Finalizing…', 98);
+  await yieldToUI();
+  return found;
+}
+
+// ====== UI ======
+const editor = document.getElementById('editor');
+const lineNums = document.getElementById('lineNums');
+const issuesList = document.getElementById('issuesList');
+const fileInput = document.getElementById('fileInput');
+const dropOverlay = document.getElementById('dropOverlay');
+
+function updateLineNumbers() {
+  const count = editor.value.split('\n').length;
+  let html = '';
+  for (let i = 1; i <= count; i++) html += i + '\n';
+  lineNums.textContent = html;
+}
+
+editor.addEventListener('input', updateLineNumbers);
+editor.addEventListener('scroll', () => { lineNums.scrollTop = editor.scrollTop; });
+updateLineNumbers();
+
+// File handling
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = ev => { editor.value = ev.target.result; updateLineNumbers(); };
+    reader.readAsText(file);
+  }
+});
+
+// Drag & drop
+document.addEventListener('dragover', e => { e.preventDefault(); dropOverlay.classList.add('show'); });
+document.addEventListener('dragleave', e => { if (e.target === dropOverlay) dropOverlay.classList.remove('show'); });
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  dropOverlay.classList.remove('show');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = ev => { editor.value = ev.target.result; updateLineNumbers(); };
+    reader.readAsText(file);
+  }
+});
+
+// Progress bar helpers
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+function showProgress(label, pct) {
+  progressWrap.classList.add('show');
+  progressLabel.textContent = label;
+  progressFill.style.width = pct + '%';
+}
+function hideProgress() { progressWrap.classList.remove('show'); progressFill.style.width = '0%'; }
+
+// Analyze
+const analyzeBtn = document.getElementById('analyzeBtn');
+analyzeBtn.addEventListener('click', async () => {
+  if (!editor.value.trim()) return;
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = '⏳ Analyzing…';
+  analyzeBtn.style.opacity = '0.6';
+
+  showProgress('Loading dictionary…', 2);
+  if (!typoReady) {
+    await loadTypo();
+  }
+  showProgress('Starting analysis…', 5);
+  await new Promise(r => setTimeout(r, 0));
+
+  issues = await analyzeText(editor.value, showProgress);
+  fixedCount = 0;
+  selectedIdx = -1;
+  ignored.clear();
+  renderIssues();
+  updateStats();
+  showProgress('Done!', 100);
+  analyzeBtn.disabled = false;
+  analyzeBtn.textContent = '🔍 Analyze';
+  analyzeBtn.style.opacity = '';
+  setTimeout(hideProgress, 800);
+});
+
+function updateStats() {
+  const active = issues.filter(i => !i.fixed && !ignored.has(i.id) && !ignoredTypes.has(i.category + ':' + i.message));
+  const fixed = issues.filter(i => i.fixed).length + fixedCount;
+  document.getElementById('statTotal').textContent = `Issues: ${issues.length}`;
+  document.getElementById('statFixed').textContent = `Fixed: ${fixed}`;
+  document.getElementById('statRemaining').textContent = `Remaining: ${active.length}`;
+}
+
+function getVisibleIssues() {
+  return issues.filter(i => {
+    if (i.fixed || ignored.has(i.id) || ignoredTypes.has(i.category + ':' + i.message)) return false;
+    if (currentFilter !== 'all' && i.severity !== currentFilter) return false;
+    return true;
+  });
+}
+
+function renderIssues() {
+  const visible = getVisibleIssues();
+  if (visible.length === 0) {
+    issuesList.innerHTML = '<div class="empty-state"><p>✅ No issues found!</p></div>';
+    return;
+  }
+
+  // Group by category
+  const groups = {};
+  for (const issue of visible) {
+    if (!groups[issue.category]) groups[issue.category] = [];
+    groups[issue.category].push(issue);
+  }
+
+  let html = '';
+  for (const [cat, items] of Object.entries(groups)) {
+    html += `<div class="issue-group"><div class="issue-group-header">${cat} (${items.length})</div>`;
+    for (const issue of items) {
+      const sel = issue.id === (visible[selectedIdx]?.id) ? ' selected' : '';
+      const ctx = getContext(issue);
+      html += `<div class="issue ${issue.severity}${sel}" data-id="${issue.id}">
+        <div class="issue-title"><span class="issue-badge">${issue.severity}</span> Line ${issue.line}</div>
+        <div class="issue-context">${ctx}</div>
+        ${issue.suggestion ? `<div class="issue-suggestion">→ ${escHtml(String(issue.suggestion))}</div>` : ''}
+        <div class="issue-actions">
+          ${issue.suggestion ? `<button class="btn green fix-btn" data-id="${issue.id}">Fix</button>` : ''}
+          <button class="btn ignore-btn" data-id="${issue.id}">Ignore</button>
+          <button class="btn ignore-all-btn" data-id="${issue.id}">Ignore All</button>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  issuesList.innerHTML = html;
+
+  // Event listeners
+  issuesList.querySelectorAll('.issue').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.classList.contains('btn')) return;
+      const id = parseInt(el.dataset.id);
+      const issue = issues.find(i => i.id === id);
+      if (issue) scrollToIssue(issue);
+    });
+  });
+  issuesList.querySelectorAll('.fix-btn').forEach(el => {
+    el.addEventListener('click', () => fixIssue(parseInt(el.dataset.id)));
+  });
+  issuesList.querySelectorAll('.ignore-btn').forEach(el => {
+    el.addEventListener('click', () => { ignored.add(parseInt(el.dataset.id)); renderIssues(); updateStats(); });
+  });
+  issuesList.querySelectorAll('.ignore-all-btn').forEach(el => {
+    el.addEventListener('click', () => {
+      const issue = issues.find(i => i.id === parseInt(el.dataset.id));
+      if (issue) { ignoredTypes.add(issue.category + ':' + issue.message); renderIssues(); updateStats(); }
+    });
+  });
+}
+
+function getContext(issue) {
+  const lines = editor.value.split('\n');
+  const line = lines[issue.line - 1] || '';
+  const start = Math.max(0, issue.col - 20);
+  const end = Math.min(line.length, issue.col + issue.length + 20);
+  const before = escHtml(line.substring(start, issue.col - 1));
+  const match = escHtml(line.substring(issue.col - 1, issue.col - 1 + issue.length));
+  const after = escHtml(line.substring(issue.col - 1 + issue.length, end));
+  return `${start > 0 ? '…' : ''}${before}<mark>${match}</mark>${after}${end < line.length ? '…' : ''}`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function scrollToIssue(issue) {
+  // Scroll editor to the line
+  const lines = editor.value.split('\n');
+  let pos = 0;
+  for (let i = 0; i < issue.line - 1; i++) pos += lines[i].length + 1;
+  pos += issue.col - 1;
+  editor.focus();
+  editor.setSelectionRange(pos, pos + issue.length);
+  // Scroll into view
+  const lineHeight = 20.8; // approximate
+  const scrollTo = (issue.line - 5) * lineHeight;
+  editor.scrollTop = Math.max(0, scrollTo);
+  lineNums.scrollTop = editor.scrollTop;
+}
+
+function fixIssue(id) {
+  const issue = issues.find(i => i.id === id);
+  if (!issue || !issue.suggestion) return;
+
+  const lines = editor.value.split('\n');
+  const line = lines[issue.line - 1];
+  const before = line.substring(0, issue.col - 1);
+  const after = line.substring(issue.col - 1 + issue.length);
+  lines[issue.line - 1] = before + issue.suggestion + after;
+  editor.value = lines.join('\n');
+  updateLineNumbers();
+
+  issue.fixed = true;
+  fixedCount;
+
+  // Adjust positions for issues on the same line after this one
+  const delta = issue.suggestion.length - issue.length;
+  for (const other of issues) {
+    if (other.id !== id && other.line === issue.line && other.col > issue.col && !other.fixed) {
+      other.col += delta;
+    }
+  }
+
+  renderIssues();
+  updateStats();
+}
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    selectedIdx = -1;
+    renderIssues();
+  });
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target === editor) return;
+  const visible = getVisibleIssues();
+  if (!visible.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedIdx = Math.min(selectedIdx + 1, visible.length - 1);
+    renderIssues();
+    scrollToIssue(visible[selectedIdx]);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedIdx = Math.max(selectedIdx - 1, 0);
+    renderIssues();
+    scrollToIssue(visible[selectedIdx]);
+  } else if (e.key === 'Enter' && selectedIdx >= 0) {
+    e.preventDefault();
+    const issue = visible[selectedIdx];
+    if (issue?.suggestion) fixIssue(issue.id);
+  } else if (e.key === 'Delete') {
+    e.preventDefault();
+    const issue = visible[selectedIdx];
+    if (issue) {
+      if (e.shiftKey) {
+        ignoredTypes.add(issue.category + ':' + issue.message);
+      } else {
+        ignored.add(issue.id);
+      }
+      if (selectedIdx >= visible.length - 1) selectedIdx = Math.max(0, selectedIdx - 1);
+      renderIssues();
+      updateStats();
+    }
+  }
+});
+
+// Export
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([editor.value], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'edited-book.md';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+</script>
+</body>
+</html>

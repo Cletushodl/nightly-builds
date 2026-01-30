@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coach Randy the Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#000000;--surface:#1c1c1e;--surface2:#2c2c2e;--border:#38383a;
+  --accent:#06b6d4;--accent2:#06b6d4;--accent-glow:rgba(6,182,212,.1);
+  --green:#30d158;--red:#ff453a;--amber:#ffd60a;--pink:#ff375f;
+  --text:#f5f5f7;--text2:#86868b;--text3:#48484a;
+  --radius:14px;--radius-sm:10px;
+}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Display',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* Ticker */
+.ticker-wrap{overflow:hidden;background:var(--surface);border-bottom:1px solid rgba(255,255,255,.05);padding:8px 0;white-space:nowrap}
+.ticker{display:inline-block;animation:scroll 120s linear infinite;font-size:.8125rem;color:var(--text2);font-weight:400}
+.ticker span{margin-right:48px}
+.ticker span .btc{color:#f7931a;font-weight:600}
+.ticker span .emoji{margin-right:4px}
+@keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* Toast */
+.toast{position:fixed;top:24px;right:24px;background:var(--surface);border:1px solid var(--green);color:var(--green);padding:14px 24px;border-radius:var(--radius-sm);font-size:.875rem;font-weight:500;z-index:1000;transform:translateX(120%);transition:transform .4s cubic-bezier(.16,1,.3,1);backdrop-filter:blur(12px);display:flex;align-items:center;gap:8px}
+.toast.show{transform:translateX(0)}
+.toast svg{width:18px;height:18px;flex-shrink:0}
+
+/* Header */
+.header{padding:48px 24px 36px;text-align:center}
+.header-content{position:relative;z-index:1}
+.header h1{font-size:2rem;font-weight:700;letter-spacing:-.03em;color:var(--text)}
+.header p{color:var(--text2);font-size:.9375rem;margin-top:8px;font-weight:400}
+
+/* Nav */
+.nav{display:flex;gap:2px;padding:6px 16px;background:rgba(28,28,30,.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.08);overflow-x:auto;position:sticky;top:0;z-index:10;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav button{background:transparent;border:none;color:var(--text2);padding:8px 16px;border-radius:999px;cursor:pointer;white-space:nowrap;font-size:.8125rem;font-weight:500;font-family:inherit;transition:all .2s ease}
+.nav button:hover{color:var(--text)}
+.nav button.active{color:#fff;background:rgba(255,255,255,.1);font-weight:600}
+
+/* Sections */
+.section{display:none;padding:24px 16px 80px;max-width:960px;margin:0 auto;opacity:0;transform:translateY(8px);transition:opacity .35s ease,transform .35s ease}
+.section.active{display:block;opacity:1;transform:translateY(0)}
+.section-title{font-size:1.125rem;font-weight:700;margin-bottom:20px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+
+/* Cards Grid */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px}
+.card{background:var(--surface);border-radius:var(--radius);padding:20px;position:relative;transition:transform .2s ease}
+.card:hover{transform:scale(1.02)}
+.card-icon{font-size:1.25rem;margin-bottom:8px}
+.card .big{font-size:2rem;font-weight:700;letter-spacing:-.03em;color:var(--text)}
+.card .label{font-size:.6875rem;color:var(--text2);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;font-weight:500}
+
+/* Chart Box */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.chart-grid{grid-template-columns:1fr}}
+.chart-box{background:var(--surface);border-radius:var(--radius);padding:20px;margin-bottom:14px}
+.chart-box h3{font-size:.75rem;font-weight:600;color:var(--text2);margin-bottom:14px;text-transform:uppercase;letter-spacing:.05em}
+.chart-box canvas{max-height:200px}
+canvas{max-height:260px}
+
+/* Empty State */
+.run-card{background:var(--surface);border-radius:var(--radius);padding:20px;margin-bottom:12px}
+.run-card-header{font-size:.875rem;font-weight:600;margin-bottom:14px;color:var(--text2)}
+.run-card-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px}
+.run-stat{text-align:center}
+.run-stat-val{display:block;font-size:1.1rem;font-weight:700;color:var(--text)}
+.run-stat-lbl{display:block;font-size:.6875rem;color:var(--text2);text-transform:uppercase;margin-top:3px;letter-spacing:.04em}
+.empty-state{text-align:center;padding:48px 24px;color:var(--text3)}
+.empty-state .icon{font-size:2.5rem;margin-bottom:12px}
+.empty-state p{font-size:.875rem;color:var(--text2)}
+
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:.8125rem}
+th{padding:12px 14px;text-align:left;color:var(--text2);font-weight:600;font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s;background:var(--surface2)}
+th:hover{color:var(--text)}
+th .sort-indicator{opacity:.3;margin-left:4px;font-size:.625rem}
+th.sorted .sort-indicator{opacity:1;color:var(--accent)}
+td{padding:10px 14px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--text);transition:background .1s}
+tbody tr:nth-child(even){background:rgba(255,255,255,.015)}
+tbody tr:hover{background:rgba(6,182,212,.04)}
+tbody tr:last-child td{border-bottom:none}
+.type-badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.6875rem;font-weight:600;letter-spacing:.02em}
+.type-badge.run{background:rgba(6,182,212,.12);color:var(--accent)}
+.type-badge.strength{background:rgba(6,182,212,.12);color:var(--accent)}
+.type-badge.cycle{background:rgba(245,158,11,.12);color:var(--amber)}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{position:relative;margin-bottom:0}
+.form-group label{display:block;font-size:.6875rem;color:var(--text2);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.form-group input,.form-group select{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.875rem;font-family:inherit;transition:border-color .2s,box-shadow .2s;outline:none}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.form-group input::placeholder{color:var(--text3)}
+.form-group select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.btn{background:var(--accent);border:none;color:#000;padding:14px 28px;border-radius:var(--radius-sm);cursor:pointer;font-size:.875rem;font-weight:600;font-family:inherit;width:100%;margin-top:8px;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn:active{opacity:.7}
+
+/* PR Items */
+.pr-item{background:var(--surface);border-radius:var(--radius);padding:18px 20px;margin-bottom:12px;display:flex;align-items:center;gap:16px}
+.pr-item .pr-icon{font-size:1.5rem;flex-shrink:0}
+.pr-item .pr-content{flex:1}
+.pr-item .val{font-size:1.25rem;font-weight:700;color:var(--green)}
+.pr-item .desc{font-size:.75rem;color:var(--text2);margin-top:2px}
+
+/* Footer */
+.footer{text-align:center;padding:32px 16px;margin-top:0}
+.footer p{font-size:.75rem;color:var(--text3);font-weight:400;letter-spacing:.02em}
+.footer span{color:var(--text2);font-weight:600}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* Mobile */
+@media(max-width:600px){
+  .form-grid{grid-template-columns:1fr}
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .header{padding:28px 16px 24px}
+  .header h1{font-size:1.4rem}
+  .section{padding:16px 12px 80px}
+  .pr-item{flex-direction:column;align-items:flex-start;gap:8px}
+}
+</style>
+</head>
+<body>
+<div class="ticker-wrap"><div class="ticker" id="ticker"></div></div>
+<div class="header"><div class="header-content">
+<h1>🏋️ Coach Randy the Trainer</h1>
+<p>Track · Train · Transform</p>
+</div></div>
+
+<div class="nav" id="nav">
+<button class="active" data-tab="dashboard">Dashboard</button>
+<button data-tab="runlist">All Runs</button>
+<button data-tab="runs">Run Trends</button>
+<button data-tab="body">Body Comp</button>
+<button data-tab="log">Workout Log</button>
+<button data-tab="add">Add Workout</button>
+<button data-tab="addcomp">Add Body Comp</button>
+<button data-tab="overlay">Overlay</button>
+<button data-tab="stats">Stats / PRs</button>
+</div>
+
+<div id="dashboard" class="section active">
+<div class="cards">
+<div class="card"><div class="card-icon">🏃</div><div class="big" id="totalMiles">0</div><div class="label">Total Miles</div></div>
+<div class="card"><div class="card-icon">💪</div><div class="big" id="totalWorkouts">0</div><div class="label">Workouts</div></div>
+<div class="card"><div class="card-icon">🔥</div><div class="big" id="totalCals">0</div><div class="label">Calories</div></div>
+<div class="card"><div class="card-icon">👟</div><div class="big" id="totalRuns">0</div><div class="label">Runs</div></div>
+</div>
+<div class="chart-box"><h3>Weekly Summary</h3><canvas id="weeklyChart"></canvas></div>
+<div id="progressSummary" class="chart-box"></div>
+</div>
+
+<div id="runlist" class="section">
+<div class="section-title">🏃 All Runs</div>
+<div id="runCards"></div>
+</div>
+
+<div id="runs" class="section">
+<div class="chart-grid">
+<div class="chart-box"><h3>Pace Over Time (min/mi)</h3><canvas id="paceChart"></canvas></div>
+<div class="chart-box"><h3>Heart Rate Over Time</h3><canvas id="hrChart"></canvas></div>
+<div class="chart-box"><h3>Distance Over Time</h3><canvas id="distChart"></canvas></div>
+<div class="chart-box"><h3>Cadence Over Time</h3><canvas id="cadChart"></canvas></div>
+</div>
+<div id="runTrendSummary" class="chart-box"></div>
+</div>
+
+<div id="body" class="section">
+<div class="chart-grid">
+<div class="chart-box"><h3>Weight Over Time</h3><canvas id="weightChart"></canvas></div>
+<div class="chart-box"><h3>Body Fat % Over Time</h3><canvas id="bfChart"></canvas></div>
+<div class="chart-box"><h3>Muscle Mass Over Time</h3><canvas id="muscleChart"></canvas></div>
+<div class="chart-box"><h3>Fat-Free Weight Over Time</h3><canvas id="ffwChart"></canvas></div>
+</div>
+<div id="bodySummary" class="chart-box"></div>
+</div>
+
+<div id="log" class="section">
+<div class="section-title">📋 Workout Log</div>
+<div class="table-wrap">
+<table id="logTable">
+<thead><tr>
+<th data-col="date">Date <span class="sort-indicator">▲▼</span></th>
+<th data-col="type">Type <span class="sort-indicator">▲▼</span></th>
+<th data-col="duration">Time <span class="sort-indicator">▲▼</span></th>
+<th data-col="distance">Dist <span class="sort-indicator">▲▼</span></th>
+<th data-col="pace">Pace <span class="sort-indicator">▲▼</span></th>
+<th data-col="hr">HR <span class="sort-indicator">▲▼</span></th>
+<th data-col="cadence">SPM <span class="sort-indicator">▲▼</span></th>
+<th data-col="calories">Cal <span class="sort-indicator">▲▼</span></th>
+<th data-col="elevation">Elev <span class="sort-indicator">▲▼</span></th>
+</tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<div id="add" class="section">
+<div class="section-title">➕ Add Workout</div>
+<div class="form-grid">
+<div class="form-group"><label>Type</label><select id="wType"><option value="Run">Run</option><option value="Strength">Strength</option><option value="Indoor Cycle">Indoor Cycle</option></select></div>
+<div class="form-group"><label>Date</label><input type="date" id="wDate"></div>
+<div class="form-group"><label>Duration (mm:ss)</label><input id="wDuration" placeholder="31:44"></div>
+<div class="form-group"><label>Distance (mi)</label><input type="number" step="0.01" id="wDist" placeholder="0.00"></div>
+<div class="form-group"><label>Pace (e.g. 12'39")</label><input id="wPace" placeholder="12'39&quot;"></div>
+<div class="form-group"><label>Avg HR (BPM)</label><input type="number" id="wHR" placeholder="145"></div>
+<div class="form-group"><label>Cadence (SPM)</label><input type="number" id="wCad" placeholder="150"></div>
+<div class="form-group"><label>Calories</label><input type="number" id="wCal" placeholder="350"></div>
+<div class="form-group"><label>Elevation (ft)</label><input type="number" id="wElev" placeholder="50"></div>
+</div>
+<button class="btn" onclick="addWorkout()">Save Workout</button>
+</div>
+
+<div id="addcomp" class="section">
+<div class="section-title">📊 Add Body Composition</div>
+<div class="form-grid">
+<div class="form-group"><label>Date</label><input type="date" id="cDate"></div>
+<div class="form-group"><label>Weight (lbs)</label><input type="number" step="0.1" id="cWeight" placeholder="220.0"></div>
+<div class="form-group"><label>BMI</label><input type="number" step="0.1" id="cBMI" placeholder="30.0"></div>
+<div class="form-group"><label>Body Fat %</label><input type="number" step="0.1" id="cBF" placeholder="18.0"></div>
+<div class="form-group"><label>Muscle Mass</label><input type="number" step="0.1" id="cMuscle" placeholder="173.0"></div>
+<div class="form-group"><label>Skeletal Muscle %</label><input type="number" step="0.1" id="cSkeletal" placeholder="53.0"></div>
+<div class="form-group"><label>Fat-Free Weight</label><input type="number" step="0.1" id="cFatFree" placeholder="182.0"></div>
+<div class="form-group"><label>Visceral Fat</label><input type="number" id="cVisceral" placeholder="12"></div>
+</div>
+<button class="btn" onclick="addComp()">Save Body Comp</button>
+</div>
+
+<div id="overlay" class="section">
+<div class="section-title">🔀 Overlay Charts</div>
+<p style="font-size:.8125rem;color:var(--text2);margin-bottom:16px">Pick one metric from each category to see them side by side on a shared timeline.</p>
+<div class="form-grid" style="margin-bottom:20px">
+<div class="form-group">
+<label>Run Metric</label>
+<select id="ovRun">
+<option value="pace">Pace (min/mi)</option>
+<option value="hr">Avg Heart Rate</option>
+<option value="distance">Distance (mi)</option>
+<option value="cadence">Cadence (SPM)</option>
+<option value="calories">Calories</option>
+</select>
+</div>
+<div class="form-group">
+<label>Body Comp Metric</label>
+<select id="ovBody">
+<option value="weight">Weight (lbs)</option>
+<option value="bf">Body Fat %</option>
+<option value="muscle">Muscle Mass (lbs)</option>
+<option value="fatfree">Fat-Free Weight (lbs)</option>
+<option value="bmi">BMI</option>
+<option value="visceral">Visceral Fat</option>
+</select>
+</div>
+</div>
+<button class="btn" onclick="renderOverlay()" style="max-width:300px;margin-bottom:24px">Generate Overlay</button>
+<div class="chart-box" id="overlayChartBox" style="display:none"><h3 id="overlayTitle"></h3><canvas id="overlayChart" style="max-height:320px"></canvas></div>
+</div>
+
+<div id="stats" class="section">
+<div class="section-title">🏆 Personal Records</div>
+<div id="prList"></div>
+</div>
+
+<div class="footer"><p>Built with 💪 by <span>Coach Randy the Trainer</span></p></div>
+
+<!-- Toast -->
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span id="toastMsg">Saved!</span></div>
+
+<script>
+const SEED_WORKOUTS=[
+{date:"2026-01-16",type:"Run",duration:"31:44",distance:2.50,pace:"12'39\"",hr:164,cadence:133,calories:365,elevation:94},
+{date:"2026-01-19",type:"Run",duration:"41:00",distance:3.52,pace:"11'39\"",hr:172,cadence:151,calories:388,elevation:27},
+{date:"2026-01-21",type:"Run",duration:"46:46",distance:4.01,pace:"11'40\"",hr:166,cadence:151,calories:445,elevation:null},
+{date:"2026-01-22",type:"Strength",duration:"31:22",distance:null,pace:null,hr:124,cadence:null,calories:285,elevation:null},
+{date:"2026-01-23",type:"Run",duration:"40:36",distance:3.00,pace:"13'29\"",hr:143,cadence:139,calories:415,elevation:28},
+{date:"2026-01-24",type:"Indoor Cycle",duration:"30:02",distance:null,pace:null,hr:138,cadence:null,calories:317,elevation:null},
+{date:"2026-01-26",type:"Run",duration:"36:09",distance:2.80,pace:"12'55\"",hr:149,cadence:134,calories:225,elevation:8},
+{date:"2026-01-27",type:"Strength",duration:"31:38",distance:null,pace:null,hr:127,cadence:null,calories:228,elevation:null},
+{date:"2026-01-28",type:"Run",duration:"1:14:01",distance:6.00,pace:"12'19\"",hr:151,cadence:154,calories:690,elevation:56}
+];
+const SEED_COMP=[
+{date:"2026-01-12",weight:222.2,bmi:30.4,bf:17.8,muscle:173.6,skeletal:53.1,fatfree:182.6,visceral:12},
+{date:"2026-01-16",weight:220.2,bmi:30.1,bf:17.6,muscle:172.4,skeletal:53.2,fatfree:181.4,visceral:12},
+{date:"2026-01-19",weight:221.8,bmi:30.4,bf:17.8,muscle:173.0,skeletal:53.1,fatfree:182.0,visceral:12},
+{date:"2026-01-22",weight:222.6,bmi:30.5,bf:17.9,muscle:173.8,skeletal:53.0,fatfree:182.8,visceral:13},
+{date:"2026-01-26",weight:227.0,bmi:31.1,bf:18.3,muscle:176.2,skeletal:52.8,fatfree:185.4,visceral:13},
+{date:"2026-01-28",weight:224.8,bmi:30.8,bf:18.1,muscle:174.8,skeletal:52.9,fatfree:184.0,visceral:13},
+{date:"2026-01-29",weight:226.0,bmi:30.9,bf:18.2,muscle:175.8,skeletal:52.9,fatfree:185.0,visceral:13}
+];
+
+const DATA_VERSION='v3';
+function load(key,seed){
+  if(localStorage.getItem('cr_version')!==DATA_VERSION){
+    localStorage.removeItem('cr_workouts');
+    localStorage.removeItem('cr_comps');
+    localStorage.setItem('cr_version',DATA_VERSION);
+  }
+  let stored=JSON.parse(localStorage.getItem(key)||'[]');
+  let dates=new Set(stored.map(r=>r.date+JSON.stringify(r)));
+  seed.forEach(s=>{if(!dates.has(s.date+JSON.stringify(s)))stored.push(s)});
+  stored.sort((a,b)=>a.date.localeCompare(b.date));
+  localStorage.setItem(key,JSON.stringify(stored));
+  return stored;
+}
+let workouts=load('cr_workouts',SEED_WORKOUTS);
+let comps=load('cr_comps',SEED_COMP);
+let charts={};
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// Nav
+document.getElementById('nav').addEventListener('click',e=>{
+  if(e.target.tagName!=='BUTTON')return;
+  const tab=e.target.dataset.tab;
+  document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active');s.style.display='none'});
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  const sec=document.getElementById(tab);
+  sec.style.display='block';
+  // trigger reflow for animation
+  void sec.offsetWidth;
+  sec.classList.add('active');
+  e.target.classList.add('active');
+  // Lazy-render charts on first visit
+  if(tab==='runlist')renderRunList();
+  if(tab==='runs'&&!charts.pace)renderRunCharts();
+  if(tab==='body'&&!charts.weight)renderBodyCharts();
+});
+
+function paceToMin(p){if(!p)return null;let m=p.match(/(\d+)'(\d+)/);return m?+m[1]+ +m[2]/60:null;}
+function fmt(n,d=1){return n!=null?n.toFixed(d):'-';}
+function shortDate(d){let dt=new Date(d+'T12:00:00');return(dt.getMonth()+1)+'/'+dt.getDate();}
+function weekLabel(sunStr){let s=new Date(sunStr+'T12:00:00');let e=new Date(s);e.setDate(s.getDate()+6);return(s.getMonth()+1)+'/'+s.getDate()+'–'+(e.getMonth()+1)+'/'+e.getDate();}
+
+// Chart defaults
+Chart.defaults.color='#8b949e';
+Chart.defaults.borderColor='rgba(48,54,61,.5)';
+Chart.defaults.font.family='Inter, system-ui, sans-serif';
+Chart.defaults.font.size=11;
+
+const baseOpts={responsive:true,maintainAspectRatio:true,interaction:{intersect:false,mode:'index'},plugins:{legend:{display:false},tooltip:{backgroundColor:'#161b22',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e',cornerRadius:8,padding:10,titleFont:{weight:600}}},scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:12}},y:{grid:{color:'rgba(48,54,61,.3)',drawBorder:false},ticks:{padding:8},border:{display:false}}}};
+
+function makeGradient(ctx,color){
+  const g=ctx.createLinearGradient(0,0,0,260);
+  g.addColorStop(0,color+'40');
+  g.addColorStop(1,color+'00');
+  return g;
+}
+
+function renderDash(){
+  let runs=workouts.filter(w=>w.type==='Run');
+  let totalMi=workouts.reduce((s,w)=>s+(w.distance||0),0);
+  let totalCal=workouts.reduce((s,w)=>s+(w.calories||0),0);
+  document.getElementById('totalMiles').textContent=fmt(totalMi,1);
+  document.getElementById('totalWorkouts').textContent=workouts.length;
+  document.getElementById('totalCals').textContent=totalCal.toLocaleString();
+  document.getElementById('totalRuns').textContent=runs.length;
+
+  let weeks={};
+  workouts.forEach(w=>{
+    let d=new Date(w.date+'T12:00:00');
+    let day=d.getDay();
+    let mon=new Date(d);mon.setDate(d.getDate()-day);
+    let key=mon.toISOString().slice(0,10);
+    if(!weeks[key])weeks[key]={mi:0,cal:0,cnt:0};
+    weeks[key].mi+=w.distance||0;
+    weeks[key].cal+=w.calories||0;
+    weeks[key].cnt++;
+  });
+  let wks=Object.keys(weeks).sort();
+  if(charts.weekly)charts.weekly.destroy();
+  const ctx=document.getElementById('weeklyChart').getContext('2d');
+  charts.weekly=new Chart(ctx,{type:'bar',data:{labels:wks.map(k=>weekLabel(k)),datasets:[
+    {label:'Miles',data:wks.map(k=>weeks[k].mi),backgroundColor:'rgba(6,182,212,.7)',borderRadius:6,borderSkipped:false},
+    {label:'Workouts',data:wks.map(k=>weeks[k].cnt),backgroundColor:'rgba(124,58,237,.6)',borderRadius:6,borderSkipped:false}
+  ]},options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,labels:{usePointStyle:true,pointStyle:'circle',padding:16,color:'#8b949e',font:{size:11}}}}}});
+}
+
+function renderProgressSummary(){
+  let el=document.getElementById('progressSummary');
+  let runs=workouts.filter(w=>w.type==='Run'&&w.hr&&w.pace).sort((a,b)=>a.date.localeCompare(b.date));
+  if(runs.length<2){el.style.display='none';return;}
+
+  let first=runs.slice(0,Math.ceil(runs.length/2));
+  let second=runs.slice(Math.ceil(runs.length/2));
+  let avgHR=arr=>Math.round(arr.reduce((s,r)=>s+r.hr,0)/arr.length);
+  let avgPace=arr=>{let p=arr.map(r=>paceToMin(r.pace)).filter(Boolean);return p.length?p.reduce((s,v)=>s+v,0)/p.length:null;};
+  let totalMi=workouts.filter(w=>w.type==='Run').reduce((s,w)=>s+(w.distance||0),0);
+  let totalWorkouts=workouts.length;
+  
+  let earlyHR=avgHR(first), lateHR=avgHR(second);
+  let earlyPace=avgPace(first), latePace=avgPace(second);
+  let hrDelta=earlyHR-lateHR;
+  let paceDelta=earlyPace&&latePace?(earlyPace-latePace):null;
+  
+  let longest=runs.reduce((a,b)=>(a.distance||0)>(b.distance||0)?a:b);
+  let firstDate=new Date(runs[0].date+'T12:00:00');
+  let lastDate=new Date(runs[runs.length-1].date+'T12:00:00');
+  let days=Math.round((lastDate-firstDate)/(1000*60*60*24));
+  
+  let lines=[];
+  lines.push(`<h3>📊 Progress Summary</h3>`);
+  lines.push(`<div style="font-size:.875rem;line-height:1.7;color:var(--text2);margin-top:8px">`);
+  lines.push(`<p style="margin-bottom:10px">Over <strong style="color:var(--text1)">${days} days</strong> and <strong style="color:var(--text1)">${totalWorkouts} workouts</strong> (${runs.length} runs, ${fmt(totalMi,1)} total miles), here's how you're progressing:</p>`);
+  
+  // HR conditioning
+  lines.push(`<p style="margin-bottom:10px"><strong style="color:var(--accent)">❤️ Heart Rate Conditioning:</strong> Early runs averaged <strong style="color:var(--text1)">${earlyHR} BPM</strong>, recent runs average <strong style="color:var(--text1)">${lateHR} BPM</strong>.`);
+  if(hrDelta>0){
+    lines.push(` That's a <strong style="color:#00c853">${hrDelta} BPM drop</strong> — your cardiovascular system is adapting. Lower HR at similar effort = stronger aerobic base.`);
+  } else if(hrDelta<0){
+    lines.push(` HR is up ${Math.abs(hrDelta)} BPM — likely pushing harder efforts or increasing distance. Keep monitoring.`);
+  }
+  lines.push(`</p>`);
+  
+  // Pace
+  if(paceDelta!==null){
+    lines.push(`<p style="margin-bottom:10px"><strong style="color:var(--accent)">⏱️ Pace:</strong> Early avg <strong style="color:var(--text1)">${Math.floor(earlyPace)}'${String(Math.round((earlyPace%1)*60)).padStart(2,'0')}"</strong>/mi → recent <strong style="color:var(--text1)">${Math.floor(latePace)}'${String(Math.round((latePace%1)*60)).padStart(2,'0')}"</strong>/mi.`);
+    if(paceDelta>0.1){
+      lines.push(` Pace improved by ~${Math.round(paceDelta*60)} seconds/mile. Solid progress.`);
+    } else if(paceDelta<-0.1){
+      lines.push(` Pace slowed ~${Math.round(Math.abs(paceDelta)*60)}s/mi — could be longer distances, smarter pacing, or more zone 2 work. Not necessarily bad.`);
+    } else {
+      lines.push(` Pace is holding steady — consistency is king.`);
+    }
+    lines.push(`</p>`);
+  }
+  
+  // Distance progression
+  lines.push(`<p style="margin-bottom:10px"><strong style="color:var(--accent)">📏 Distance:</strong> Longest run is <strong style="color:var(--text1)">${fmt(longest.distance,2)} mi</strong> (${shortDate(longest.date)}). `);
+  if(longest===runs[runs.length-1]||longest===runs[runs.length-2]){
+    lines.push(`Recent long run PR — distance is trending up. 💪`);
+  } else {
+    lines.push(`Building a solid mileage base.`);
+  }
+  lines.push(`</p>`);
+  
+  // Takeaway
+  if(hrDelta>5){
+    lines.push(`<p><strong style="color:#00c853">🏆 Key Takeaway:</strong> Heart rate is dropping while maintaining or improving pace — textbook aerobic adaptation. Keep it up.</p>`);
+  } else {
+    lines.push(`<p><strong style="color:var(--accent)">🏆 Key Takeaway:</strong> Consistency is building. Keep logging miles and the cardiovascular gains will compound.</p>`);
+  }
+  
+  lines.push(`</div>`);
+  el.innerHTML=lines.join('');
+}
+
+function renderRunList(){
+  let runs=workouts.filter(w=>w.type==='Run').slice().reverse();
+  let el=document.getElementById('runCards');
+  if(!runs.length){el.innerHTML='<div class="empty-state">No runs logged yet</div>';return;}
+  el.innerHTML=runs.map(r=>{
+    let paceVal=r.pace||'—';
+    let d=new Date(r.date+'T12:00:00');
+    let dayName=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    let monthName=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+    let dateStr=dayName+', '+monthName+' '+d.getDate()+', '+d.getFullYear();
+    return `<div class="run-card">
+      <div class="run-card-header">${dateStr}</div>
+      <div class="run-card-stats">
+        <div class="run-stat"><span class="run-stat-val">${r.distance!=null?r.distance.toFixed(2):'-'}</span><span class="run-stat-lbl">Miles</span></div>
+        <div class="run-stat"><span class="run-stat-val">${r.duration}</span><span class="run-stat-lbl">Duration</span></div>
+        <div class="run-stat"><span class="run-stat-val">${paceVal}</span><span class="run-stat-lbl">Pace/mi</span></div>
+        <div class="run-stat"><span class="run-stat-val">${r.hr||'-'}</span><span class="run-stat-lbl">Avg HR</span></div>
+        <div class="run-stat"><span class="run-stat-val">${r.cadence||'-'}</span><span class="run-stat-lbl">Cadence</span></div>
+        <div class="run-stat"><span class="run-stat-val">${r.calories||'-'}</span><span class="run-stat-lbl">Calories</span></div>
+        <div class="run-stat"><span class="run-stat-val">${r.elevation!=null?r.elevation+'ft':'-'}</span><span class="run-stat-lbl">Elevation</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRunCharts(){
+  let runs=workouts.filter(w=>w.type==='Run');
+  if(!runs.length)return;
+  let labels=runs.map(r=>shortDate(r.date));
+  function line(id,data,color,label){
+    const ctx=document.getElementById(id).getContext('2d');
+    const filtered=data.filter(v=>v!=null);
+    if(!filtered.length){document.getElementById(id).parentElement.innerHTML='<div class="empty-state"><div class="icon">📊</div><p>No data yet</p></div>';return null;}
+    let avgVal=filtered.reduce((s,v)=>s+v,0)/filtered.length;
+    let avgData=data.map(v=>v!=null?avgVal:null);
+    return new Chart(ctx,{type:'line',data:{labels,datasets:[
+      {label,data,borderColor:color,backgroundColor:makeGradient(ctx,color),tension:.4,fill:true,pointRadius:4,pointBackgroundColor:color,pointBorderColor:'#161b22',pointBorderWidth:2,pointHoverRadius:6,borderWidth:2.5},
+      {label:'Avg: '+avgVal.toFixed(1),data:avgData,borderColor:'#ff453a',borderDash:[6,4],borderWidth:2,pointRadius:0,pointHoverRadius:5,pointBackgroundColor:'#ff453a',fill:false,tension:0}
+    ]},options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,labels:{usePointStyle:true,pointStyle:'circle',padding:12,color:'#86868b',font:{size:10}}}}}});
+  }
+  charts.pace=line('paceChart',runs.map(r=>paceToMin(r.pace)),'#06b6d4','Pace');
+  charts.hr=line('hrChart',runs.map(r=>r.hr),'#ef4444','HR');
+  charts.dist=line('distChart',runs.map(r=>r.distance),'#10b981','Distance');
+  charts.cad=line('cadChart',runs.map(r=>r.cadence),'#f59e0b','Cadence');
+  renderRunTrendSummary();
+}
+
+function renderRunTrendSummary(){
+  let el=document.getElementById('runTrendSummary');
+  let runs=workouts.filter(w=>w.type==='Run').sort((a,b)=>a.date.localeCompare(b.date));
+  if(runs.length<2){el.style.display='none';return;}
+
+  let first=runs.slice(0,Math.ceil(runs.length/2));
+  let second=runs.slice(Math.ceil(runs.length/2));
+  let avg=(arr,fn)=>{let v=arr.map(fn).filter(x=>x!=null);return v.length?v.reduce((s,x)=>s+x,0)/v.length:null;};
+  
+  let earlyPace=avg(first,r=>paceToMin(r.pace)), latePace=avg(second,r=>paceToMin(r.pace));
+  let earlyHR=avg(first,r=>r.hr), lateHR=avg(second,r=>r.hr);
+  let earlyDist=avg(first,r=>r.distance), lateDist=avg(second,r=>r.distance);
+  let earlyCad=avg(first,r=>r.cadence), lateCad=avg(second,r=>r.cadence);
+  let totalMi=runs.reduce((s,r)=>s+(r.distance||0),0);
+  let totalTime=runs.reduce((s,r)=>{let p=r.duration.split(':').map(Number);return s+(p.length===3?p[0]*3600+p[1]*60+p[2]:p[0]*60+p[1]);},0);
+  let totalHrs=(totalTime/3600).toFixed(1);
+  let days=Math.round((new Date(runs[runs.length-1].date+'T12:00:00')-new Date(runs[0].date+'T12:00:00'))/864e5);
+  let miPerWeek=(totalMi/(days/7)).toFixed(1);
+  
+  let fmtPace=p=>p?Math.floor(p)+"'"+String(Math.round((p%1)*60)).padStart(2,'0')+'"':'-';
+  let delta=(a,b)=>a&&b?(a-b).toFixed(1):null;
+  let hrD=delta(earlyHR,lateHR);
+  let paceD=earlyPace&&latePace?((earlyPace-latePace)*60).toFixed(0):null;
+  let distD=delta(lateDist,earlyDist);
+  let cadD=delta(lateCad,earlyCad);
+
+  let h=[];
+  h.push(`<h3>🏃 Run Trend Analysis</h3>`);
+  h.push(`<div style="font-size:.875rem;line-height:1.8;color:var(--text2);margin-top:10px">`);
+
+  // Overview
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--text)">Overview:</strong> ${runs.length} runs over ${days} days · ${fmt(totalMi,1)} total miles · ${totalHrs} hours · ${miPerWeek} mi/week avg</p>`);
+
+  // Pace
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--accent)">⏱️ Pace:</strong> `);
+  h.push(`Early avg <strong style="color:var(--text)">${fmtPace(earlyPace)}/mi</strong> → Recent <strong style="color:var(--text)">${fmtPace(latePace)}/mi</strong>. `);
+  if(paceD>0) h.push(`<strong style="color:var(--green)">Improved ${paceD}s/mi.</strong> Faster while likely running smarter — great sign. `);
+  else if(paceD<0) h.push(`Pace slowed ${Math.abs(paceD)}s/mi — often expected as distance increases or you focus on zone 2 training. Slower now = faster later. `);
+  else h.push(`Holding steady. Consistency is its own reward. `);
+  h.push(`</p>`);
+
+  // Heart Rate
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--accent)">❤️ Heart Rate:</strong> `);
+  h.push(`Early avg <strong style="color:var(--text)">${Math.round(earlyHR)} BPM</strong> → Recent <strong style="color:var(--text)">${Math.round(lateHR)} BPM</strong>. `);
+  if(hrD>5) h.push(`<strong style="color:var(--green)">Down ${Math.round(hrD)} BPM</strong> — textbook cardiac adaptation. Your heart is pumping more blood per beat (increased stroke volume). This is the #1 sign of improved aerobic fitness. `);
+  else if(hrD>0) h.push(`Down ${Math.round(hrD)} BPM — slight improvement, heading the right direction. `);
+  else if(hrD<-5) h.push(`Up ${Math.round(Math.abs(hrD))} BPM — could indicate harder efforts, accumulated fatigue, or increasing distance. Monitor recovery and sleep. `);
+  else h.push(`Stable — maintaining current fitness level. `);
+
+  // Zone estimate
+  let maxHR=Math.max(...runs.map(r=>r.hr).filter(Boolean));
+  let zone2ceil=Math.round(maxHR*0.80);
+  let zone2floor=Math.round(maxHR*0.70);
+  h.push(`Estimated Zone 2 range: <strong style="color:var(--text)">${zone2floor}–${zone2ceil} BPM</strong> (based on observed max ${maxHR}).`);
+  h.push(`</p>`);
+
+  // Distance
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--accent)">📏 Distance:</strong> `);
+  h.push(`Early avg <strong style="color:var(--text)">${fmt(earlyDist,2)} mi</strong> → Recent <strong style="color:var(--text)">${fmt(lateDist,2)} mi</strong>. `);
+  if(distD>0) h.push(`<strong style="color:var(--green)">+${distD} mi/run avg.</strong> Mileage building nicely. Follow the 10% rule — don't increase weekly volume more than 10% to avoid injury. `);
+  else if(distD<0) h.push(`Slightly less per run — mix of easy and long runs is normal and healthy. `);
+  else h.push(`Consistent distance. `);
+  h.push(`</p>`);
+
+  // Cadence
+  if(earlyCad&&lateCad){
+    h.push(`<p style="margin-bottom:12px"><strong style="color:var(--accent)">👟 Cadence:</strong> `);
+    h.push(`Early avg <strong style="color:var(--text)">${Math.round(earlyCad)} SPM</strong> → Recent <strong style="color:var(--text)">${Math.round(lateCad)} SPM</strong>. `);
+    if(lateCad>=170) h.push(`Excellent cadence — 170+ SPM means efficient stride mechanics and lower injury risk. `);
+    else if(lateCad>=160) h.push(`Good cadence range. Gradually working toward 170+ SPM will improve efficiency and reduce ground contact time. `);
+    else if(lateCad>=140) h.push(`Moderate cadence. Try short bursts at higher turnover — aim for 160+ SPM to reduce overstriding and impact forces. `);
+    else h.push(`Low cadence suggests overstriding. Focus on shorter, quicker steps — think "light feet." This single change can prevent most running injuries. `);
+    h.push(`</p>`);
+  }
+
+  // Coaching notes
+  h.push(`<p><strong style="color:var(--accent)">💡 Coach's Notes:</strong> `);
+  if(lateHR>160) h.push(`You're running hot — most runs are above Zone 2. Try slowing down until you can hold a conversation. 80% of runs should be easy. The aerobic base you build there is what makes the fast runs faster. `);
+  else if(lateHR>150) h.push(`HR is moderate — mix of easy and tempo efforts. Consider dedicating 1-2 runs/week strictly to easy pace (conversational) to build aerobic base. `);
+  else h.push(`Good HR discipline — you're running at an aerobic-friendly effort. This builds the engine. Sprinkle in one tempo or interval session per week to sharpen speed. `);
+  
+  if(totalMi<15) h.push(`Weekly volume is still building. Focus on consistency (3-4 runs/week) before worrying about speed.`);
+  else if(totalMi<30) h.push(`Solid weekly mileage. Ready to introduce structured workouts: 1 long run, 1 tempo, 1-2 easy runs per week.`);
+  else h.push(`Strong volume. Time to periodize — alternate build weeks and recovery weeks to keep progressing without burnout.`);
+  h.push(`</p></div>`);
+
+  el.innerHTML=h.join('');
+}
+
+function bodyLine(ctx,id,labels,data,color,label){
+  let filtered=data.filter(v=>v!=null);
+  let avgVal=filtered.length?filtered.reduce((s,v)=>s+v,0)/filtered.length:0;
+  let avgData=data.map(v=>v!=null?avgVal:null);
+  return new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label,data,borderColor:color,backgroundColor:makeGradient(ctx,color),tension:.4,fill:true,pointRadius:4,pointBackgroundColor:color,pointBorderColor:'#161b22',pointBorderWidth:2,borderWidth:2.5},
+    {label:'Avg: '+avgVal.toFixed(1),data:avgData,borderColor:'#ff453a',borderDash:[6,4],borderWidth:2,pointRadius:0,pointHoverRadius:5,pointBackgroundColor:'#ff453a',fill:false,tension:0}
+  ]},options:{...baseOpts,plugins:{...baseOpts.plugins,legend:{display:true,labels:{usePointStyle:true,pointStyle:'circle',padding:12,color:'#86868b',font:{size:10}}}}}});
+}
+
+function renderBodyCharts(){
+  if(!comps.length)return;
+  let labels=comps.map(c=>shortDate(c.date));
+  const ctx1=document.getElementById('weightChart').getContext('2d');
+  charts.weight=bodyLine(ctx1,'weightChart',labels,comps.map(c=>c.weight),'#ec4899','Weight (lbs)');
+  const ctx2=document.getElementById('bfChart').getContext('2d');
+  charts.bf=bodyLine(ctx2,'bfChart',labels,comps.map(c=>c.bf),'#f59e0b','Body Fat %');
+  const ctx3=document.getElementById('muscleChart').getContext('2d');
+  charts.muscle=bodyLine(ctx3,'muscleChart',labels,comps.map(c=>c.muscle),'#22c55e','Muscle Mass (lbs)');
+  const ctx4=document.getElementById('ffwChart').getContext('2d');
+  charts.ffw=bodyLine(ctx4,'ffwChart',labels,comps.map(c=>c.fatfree),'#06b6d4','Fat-Free Weight (lbs)');
+  renderBodySummary();
+}
+
+function renderBodySummary(){
+  let el=document.getElementById('bodySummary');
+  if(comps.length<2){el.style.display='none';return;}
+  let c=comps[comps.length-1]; // latest
+  let prev=comps[comps.length-2];
+  let first=comps[0];
+  let days=Math.round((new Date(c.date+'T12:00:00')-new Date(first.date+'T12:00:00'))/(864e5));
+  let wDelta=(c.weight-first.weight).toFixed(1);
+  let bfDelta=(c.bf-first.bf).toFixed(1);
+  let mDelta=(c.muscle-first.muscle).toFixed(1);
+  let ffDelta=(c.fatfree-first.fatfree).toFixed(1);
+
+  let fatMass=(c.weight*c.bf/100).toFixed(1);
+  let leanRatio=(c.fatfree/c.weight*100).toFixed(1);
+
+  let h=[];
+  h.push(`<h3>📊 Body Composition Summary</h3>`);
+  h.push(`<div style="font-size:.875rem;line-height:1.8;color:var(--text2);margin-top:10px">`);
+
+  // Current snapshot
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--text)">Current (${shortDate(c.date)}):</strong> ${c.weight} lbs · ${c.bf}% body fat · ${c.muscle} lbs muscle · ${c.fatfree} lbs fat-free · BMI ${c.bmi} · Visceral fat ${c.visceral}</p>`);
+
+  // Changes over time
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--accent)">📈 ${days}-Day Trend:</strong> `);
+  h.push(`Weight <strong style="color:var(--text)">${wDelta>0?'+':''}${wDelta} lbs</strong> · `);
+  h.push(`Body fat <strong style="color:var(--text)">${bfDelta>0?'+':''}${bfDelta}%</strong> · `);
+  h.push(`Muscle <strong style="color:var(--text)">${mDelta>0?'+':''}${mDelta} lbs</strong> · `);
+  h.push(`Fat-free <strong style="color:var(--text)">${ffDelta>0?'+':''}${ffDelta} lbs</strong></p>`);
+
+  // Derived metrics
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--accent)">🔬 Breakdown:</strong> `);
+  h.push(`Estimated fat mass: <strong style="color:var(--text)">${fatMass} lbs</strong> · `);
+  h.push(`Lean body ratio: <strong style="color:var(--text)">${leanRatio}%</strong></p>`);
+
+  // Assessment
+  h.push(`<p style="margin-bottom:12px"><strong style="color:var(--accent)">📋 Assessment:</strong> `);
+  if(c.bf<15) h.push(`Body fat is in the <strong style="color:var(--green)">athletic range</strong> (<15%). Excellent conditioning. `);
+  else if(c.bf<20) h.push(`Body fat is in the <strong style="color:var(--text)">fitness range</strong> (15-20%). Solid foundation — room to lean out further with sustained training. `);
+  else if(c.bf<25) h.push(`Body fat is in the <strong style="color:var(--amber)">average range</strong> (20-25%). Plenty of room for recomposition with consistent training and nutrition. `);
+  else h.push(`Body fat is elevated (>25%). Focus on caloric deficit and progressive overload for body recomposition. `);
+
+  if(c.visceral<=12) h.push(`Visceral fat at ${c.visceral} is <strong style="color:var(--green)">within healthy range</strong> (≤12). `);
+  else h.push(`Visceral fat at ${c.visceral} is <strong style="color:var(--amber)">slightly elevated</strong> — cardio and reducing processed carbs will help bring this down. `);
+
+  if(parseFloat(mDelta)>0) h.push(`Muscle mass is <strong style="color:var(--green)">trending up</strong> — the training stimulus is working.`);
+  else if(parseFloat(mDelta)<0) h.push(`Muscle mass dipped slightly — ensure protein intake is 0.8-1g per lb bodyweight and recovery is adequate.`);
+  else h.push(`Muscle mass is holding steady.`);
+  h.push(`</p>`);
+
+  // Recommendations
+  h.push(`<p><strong style="color:var(--accent)">💡 Recommendations:</strong> `);
+  h.push(`Target protein: <strong style="color:var(--text)">${Math.round(c.weight*0.8)}–${Math.round(c.weight)}g/day</strong>. `);
+  if(c.bf>=18) h.push(`A modest deficit (300-500 cal) with strength training will preserve muscle while dropping fat. `);
+  else h.push(`At current body fat, focus on lean gains with a slight surplus (200-300 cal). `);
+  h.push(`Aim for 3-4 strength sessions/week alongside your running. Compound movements (squat, deadlift, bench, row) will drive the most recomp.`);
+  h.push(`</p></div>`);
+
+  el.innerHTML=h.join('');
+}
+
+let sortDir={};
+function typeBadge(t){
+  const cls=t==='Run'?'run':t==='Strength'?'strength':'cycle';
+  return `<span class="type-badge ${cls}">${t}</span>`;
+}
+function renderLog(){
+  let tb=document.querySelector('#logTable tbody');
+  let sorted=workouts.slice().reverse();
+  tb.innerHTML=sorted.map(w=>`<tr><td>${shortDate(w.date)}</td><td>${typeBadge(w.type)}</td><td>${w.duration}</td><td>${w.distance!=null?fmt(w.distance,2):'-'}</td><td>${w.pace||'-'}</td><td>${w.hr||'-'}</td><td>${w.cadence||'-'}</td><td>${w.calories||'-'}</td><td>${w.elevation!=null?w.elevation+'ft':'-'}</td></tr>`).join('');
+}
+document.querySelectorAll('#logTable th').forEach(th=>{
+  th.addEventListener('click',()=>{
+    document.querySelectorAll('#logTable th').forEach(h=>h.classList.remove('sorted'));
+    let col=th.dataset.col;
+    sortDir[col]=!sortDir[col];
+    th.classList.add('sorted');
+    th.querySelector('.sort-indicator').textContent=sortDir[col]?'▲':'▼';
+    workouts.sort((a,b)=>{
+      let va=a[col],vb=b[col];
+      if(va==null)return 1;if(vb==null)return -1;
+      if(typeof va==='string')return sortDir[col]?va.localeCompare(vb):vb.localeCompare(va);
+      return sortDir[col]?va-vb:vb-va;
+    });
+    renderLog();
+  });
+});
+
+function renderPRs(){
+  let runs=workouts.filter(w=>w.type==='Run'&&w.pace);
+  if(!runs.length){document.getElementById('prList').innerHTML='<div class="empty-state"><div class="icon">🏆</div><p>Complete some runs to see your PRs</p></div>';return;}
+  let paces=runs.map(r=>({p:paceToMin(r.pace),d:r.date,raw:r.pace})).filter(x=>x.p);
+  let fastest=paces.reduce((a,b)=>a.p<b.p?a:b,paces[0]);
+  let longest=runs.reduce((a,b)=>(a.distance||0)>(b.distance||0)?a:b,runs[0]);
+  let lowestHR=runs.reduce((a,b)=>(a.hr||999)<(b.hr||999)?a:b,runs[0]);
+  let html='';
+  if(fastest)html+=`<div class="pr-item"><div class="pr-icon">🏃</div><div class="pr-content"><div class="val">${fastest.raw}/mi</div><div class="desc">Fastest Pace — ${shortDate(fastest.d)}</div></div></div>`;
+  if(longest)html+=`<div class="pr-item"><div class="pr-icon">📏</div><div class="pr-content"><div class="val">${fmt(longest.distance,2)} mi</div><div class="desc">Longest Run — ${shortDate(longest.date)}</div></div></div>`;
+  if(lowestHR)html+=`<div class="pr-item"><div class="pr-icon">❤️</div><div class="pr-content"><div class="val">${lowestHR.hr} BPM</div><div class="desc">Lowest Avg HR on Run — ${shortDate(lowestHR.date)}</div></div></div>`;
+  let maxHRrun=runs.filter(r=>r.hr).reduce((a,b)=>(a.hr||0)>(b.hr||0)?a:b,runs[0]);
+  if(maxHRrun&&maxHRrun.hr)html+=`<div class="pr-item"><div class="pr-icon">🔥</div><div class="pr-content"><div class="val">${maxHRrun.hr} BPM</div><div class="desc">Max Avg HR on Run — ${shortDate(maxHRrun.date)}</div></div></div>`;
+  let totalMi=workouts.reduce((s,w)=>s+(w.distance||0),0);
+  html+=`<div class="pr-item"><div class="pr-icon">🗺️</div><div class="pr-content"><div class="val">${fmt(totalMi,1)} mi</div><div class="desc">Total Mileage — All Time</div></div></div>`;
+  document.getElementById('prList').innerHTML=html;
+}
+
+function renderOverlay(){
+  let runKey=document.getElementById('ovRun').value;
+  let bodyKey=document.getElementById('ovBody').value;
+  let runs=workouts.filter(w=>w.type==='Run').sort((a,b)=>a.date.localeCompare(b.date));
+  let compsS=comps.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  if(!runs.length||!compsS.length){showToast('Need both run and body comp data');return;}
+
+  // Build unified timeline
+  let allDates=new Set();
+  runs.forEach(r=>allDates.add(r.date));
+  compsS.forEach(c=>allDates.add(c.date));
+  let timeline=[...allDates].sort();
+  let labels=timeline.map(d=>shortDate(d));
+
+  // Map run data
+  let runMap={};
+  let runLabels={pace:'Pace (min/mi)',hr:'Avg HR (BPM)',distance:'Distance (mi)',cadence:'Cadence (SPM)',calories:'Calories'};
+  let runColors={pace:'#06b6d4',hr:'#ef4444',distance:'#10b981',cadence:'#f59e0b',calories:'#ec4899'};
+  runs.forEach(r=>{
+    let val=null;
+    if(runKey==='pace')val=paceToMin(r.pace);
+    else if(runKey==='hr')val=r.hr;
+    else if(runKey==='distance')val=r.distance;
+    else if(runKey==='cadence')val=r.cadence;
+    else if(runKey==='calories')val=r.calories;
+    runMap[r.date]=val;
+  });
+
+  // Map body data
+  let bodyMap={};
+  let bodyLabels={weight:'Weight (lbs)',bf:'Body Fat %',muscle:'Muscle Mass (lbs)',fatfree:'Fat-Free Weight (lbs)',bmi:'BMI',visceral:'Visceral Fat'};
+  let bodyColors={weight:'#ec4899',bf:'#f59e0b',muscle:'#22c55e',fatfree:'#06b6d4',bmi:'#a78bfa',visceral:'#f87171'};
+  compsS.forEach(c=>{
+    let val=null;
+    if(bodyKey==='weight')val=c.weight;
+    else if(bodyKey==='bf')val=c.bf;
+    else if(bodyKey==='muscle')val=c.muscle;
+    else if(bodyKey==='fatfree')val=c.fatfree;
+    else if(bodyKey==='bmi')val=c.bmi;
+    else if(bodyKey==='visceral')val=c.visceral;
+    bodyMap[c.date]=val;
+  });
+
+  let runData=timeline.map(d=>runMap[d]!=null?runMap[d]:null);
+  let bodyData=timeline.map(d=>bodyMap[d]!=null?bodyMap[d]:null);
+
+  document.getElementById('overlayChartBox').style.display='block';
+  document.getElementById('overlayTitle').textContent=runLabels[runKey]+' vs '+bodyLabels[bodyKey];
+
+  if(charts.overlay)charts.overlay.destroy();
+  const ctx=document.getElementById('overlayChart').getContext('2d');
+  charts.overlay=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:runLabels[runKey],data:runData,borderColor:runColors[runKey],backgroundColor:runColors[runKey]+'33',tension:.4,fill:false,pointRadius:5,pointBackgroundColor:runColors[runKey],pointBorderColor:'#000',pointBorderWidth:2,borderWidth:2.5,yAxisID:'y',spanGaps:true},
+        {label:bodyLabels[bodyKey],data:bodyData,borderColor:bodyColors[bodyKey],backgroundColor:bodyColors[bodyKey]+'33',tension:.4,fill:false,pointRadius:5,pointBackgroundColor:bodyColors[bodyKey],pointBorderColor:'#000',pointBorderWidth:2,borderWidth:2.5,yAxisID:'y1',spanGaps:true}
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:true,
+      interaction:{intersect:false,mode:'index'},
+      plugins:{
+        legend:{display:true,labels:{usePointStyle:true,pointStyle:'circle',padding:16,color:'#86868b',font:{size:12}}},
+        tooltip:{backgroundColor:'#1c1c1e',borderColor:'#38383a',borderWidth:1,titleColor:'#f5f5f7',bodyColor:'#86868b',cornerRadius:8,padding:12}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{maxRotation:0,autoSkipPadding:12,color:'#86868b'}},
+        y:{type:'linear',position:'left',grid:{color:'rgba(56,56,58,.3)',drawBorder:false},ticks:{color:runColors[runKey],padding:8},title:{display:true,text:runLabels[runKey],color:runColors[runKey],font:{size:11}}},
+        y1:{type:'linear',position:'right',grid:{drawOnChartArea:false},ticks:{color:bodyColors[bodyKey],padding:8},title:{display:true,text:bodyLabels[bodyKey],color:bodyColors[bodyKey],font:{size:11}}}
+      }
+    }
+  });
+}
+
+function addWorkout(){
+  let w={
+    date:document.getElementById('wDate').value,
+    type:document.getElementById('wType').value,
+    duration:document.getElementById('wDuration').value,
+    distance:parseFloat(document.getElementById('wDist').value)||null,
+    pace:document.getElementById('wPace').value||null,
+    hr:parseInt(document.getElementById('wHR').value)||null,
+    cadence:parseInt(document.getElementById('wCad').value)||null,
+    calories:parseInt(document.getElementById('wCal').value)||null,
+    elevation:parseInt(document.getElementById('wElev').value)||null
+  };
+  if(!w.date||!w.duration){showToast('⚠️ Date and duration required');return;}
+  workouts.push(w);
+  workouts.sort((a,b)=>a.date.localeCompare(b.date));
+  localStorage.setItem('cr_workouts',JSON.stringify(workouts));
+  showToast('Workout saved!');
+  renderLog();renderDash();renderPRs();
+  // Reset form
+  ['wDate','wDuration','wDist','wPace','wHR','wCad','wCal','wElev'].forEach(id=>document.getElementById(id).value='');
+}
+
+function addComp(){
+  let c={
+    date:document.getElementById('cDate').value,
+    weight:parseFloat(document.getElementById('cWeight').value)||null,
+    bmi:parseFloat(document.getElementById('cBMI').value)||null,
+    bf:parseFloat(document.getElementById('cBF').value)||null,
+    muscle:parseFloat(document.getElementById('cMuscle').value)||null,
+    skeletal:parseFloat(document.getElementById('cSkeletal').value)||null,
+    fatfree:parseFloat(document.getElementById('cFatFree').value)||null,
+    visceral:parseInt(document.getElementById('cVisceral').value)||null
+  };
+  if(!c.date){showToast('⚠️ Date required');return;}
+  comps.push(c);
+  comps.sort((a,b)=>a.date.localeCompare(b.date));
+  localStorage.setItem('cr_comps',JSON.stringify(comps));
+  showToast('Body comp saved!');
+  ['cDate','cWeight','cBMI','cBF','cMuscle','cSkeletal','cFatFree','cVisceral'].forEach(id=>document.getElementById(id).value='');
+}
+
+// Init
+renderDash();renderProgressSummary();renderLog();renderPRs();
+
+// Ticker
+(function(){
+  const jokes=[
+    "₿ Bitcoin and burpees: both hurt now, pay off later.",
+    "💪 Your gains are like sats — stack 'em daily.",
+    "₿ HODL your plank like you HODL your Bitcoin.",
+    "🏃 Running from fiat since 2009.",
+    "₿ Proof of Work isn't just for miners — it's leg day too.",
+    "💪 Can't fake reps. Can't fake Bitcoin. Both are trustless.",
+    "₿ Your body is a node. Keep it running.",
+    "🏋️ 21 million sats of effort, zero shortcuts.",
+    "₿ Bear markets build character. So do hill sprints.",
+    "💪 Stack sats. Stack plates. Same energy.",
+    "₿ Not your keys, not your gains. Put in the work.",
+    "🏃 Bitcoin fixes money. Running fixes everything else.",
+    "₿ Difficulty adjustment: add 5 lbs every week.",
+    "💪 Low time preference = meal prep AND DCA.",
+    "₿ You wouldn't sell your Bitcoin at a loss. Don't skip leg day either.",
+    "🏋️ Hard money. Hard body. No excuses.",
+    "₿ Every sat counts. Every rep counts.",
+    "🏃 The halving: when you cut your mile time in half.",
+    "₿ NGMI if you skip cardio.",
+    "💪 Fiat is bloated. Don't let your physique be too.",
+    "₿ Number go up. Weight go down. This is the way.",
+    "🏋️ Lightning-fast reps, on-chain recovery.",
+    "₿ Your portfolio and your deadlift should both make people uncomfortable.",
+    "🏃 Running a full node and a full mile — both non-negotiable.",
+    "₿ Whales lift heavy. Be a whale.",
+  ];
+  // Fetch BTC price
+  let priceStr='';
+  fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd')
+    .then(r=>r.json()).then(d=>{priceStr='<span class="btc">₿ BTC: $'+d.bitcoin.usd.toLocaleString()+'</span>';buildTicker();})
+    .catch(()=>buildTicker());
+
+  function buildTicker(){
+    let items=jokes.slice().sort(()=>Math.random()-.5);
+    if(priceStr)items.unshift(priceStr);
+    let html=items.map(j=>j.startsWith('<')?`<span>${j}</span>`:`<span>${j}</span>`).join('');
+    document.getElementById('ticker').innerHTML=html+html;
+  }
+  buildTicker();
+})();
+// Lazy-load run/body charts only when tab visited
+</script>
+</body>
+</html>

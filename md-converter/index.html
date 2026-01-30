@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://unpkg.com/typo-js@1.2.2/typo.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        h1 { text-align: center; color: #a8dadc; margin-bottom: 20px; }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+        .panel {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .panel-title { color: #a8dadc; font-weight: 600; }
+        textarea {
+            width: 100%;
+            height: 450px;
+            background: #0f0f23;
+            color: #eee;
+            border: 1px solid #457b9d;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+        textarea:focus { outline: none; border-color: #a8dadc; }
+        .preview {
+            background: #fff;
+            color: #222;
+            border-radius: 8px;
+            padding: 20px;
+            height: 450px;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+        .preview h1, .preview h2, .preview h3 { color: #1a1a2e; margin: 1em 0 0.5em; }
+        .preview h1 { font-size: 2em; border-bottom: 2px solid #ddd; padding-bottom: 0.3em; }
+        .preview h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        .preview p { margin: 1em 0; }
+        .preview ul, .preview ol { margin: 1em 0; padding-left: 2em; }
+        .preview li { margin: 0.5em 0; }
+        .preview code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+        .preview pre { background: #f4f4f4; padding: 15px; border-radius: 6px; overflow-x: auto; }
+        .preview pre code { background: none; padding: 0; }
+        .preview blockquote { border-left: 4px solid #457b9d; margin: 1em 0; padding-left: 1em; color: #555; }
+        .preview a { color: #457b9d; }
+        .preview table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        .preview th, .preview td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        .preview th { background: #f4f4f4; }
+        .buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #457b9d; color: #fff; }
+        .btn-primary:hover { background: #1d3557; }
+        .btn-secondary { background: #2d4263; color: #fff; }
+        .btn-secondary:hover { background: #3d5273; }
+        .btn-success { background: #2a9d8f; color: #fff; }
+        .btn-success:hover { background: #1a7d6f; }
+        .btn-warning { background: #e9c46a; color: #1a1a2e; }
+        .btn-warning:hover { background: #f4d58d; }
+        .btn-danger { background: #e63946; color: #fff; }
+        .btn-danger:hover { background: #c62828; }
+        .btn-small { padding: 5px 10px; font-size: 12px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        input[type="file"] { display: none; }
+        .file-label {
+            padding: 8px 16px;
+            background: #2d4263;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-block;
+        }
+        .file-label:hover { background: #3d5273; }
+        .stats {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            gap: 20px;
+        }
+        
+        /* Spell Check Panel */
+        .spell-panel {
+            background: #0f0f23;
+            border: 1px solid #457b9d;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            display: none;
+        }
+        .spell-panel.active { display: block; }
+        .spell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .spell-counter {
+            color: #e9c46a;
+            font-weight: 600;
+        }
+        .spell-nav {
+            display: flex;
+            gap: 8px;
+        }
+        .spell-word-display {
+            background: #1a1a2e;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .spell-word {
+            font-size: 18px;
+            color: #e63946;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .spell-context {
+            font-size: 12px;
+            color: #888;
+            font-family: monospace;
+        }
+        .spell-context .highlight {
+            color: #e63946;
+            background: rgba(230, 57, 70, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .spell-suggestions {
+            margin-top: 10px;
+        }
+        .spell-suggestions-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        .suggestion-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .suggestion-btn {
+            background: #2a9d8f;
+            color: #fff;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .suggestion-btn:hover {
+            background: #1a7d6f;
+            transform: translateY(-1px);
+        }
+        .spell-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2d4263;
+        }
+        .custom-replace {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .custom-replace input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #457b9d;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 14px;
+        }
+        .custom-replace input:focus {
+            outline: none;
+            border-color: #a8dadc;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 20px 40px;
+            border-radius: 10px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        /* Keyboard shortcuts hint */
+        .shortcuts {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
+        }
+        kbd {
+            background: #2d4263;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>📝 MD Converter</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Markdown Input</span>
+                <div class="buttons">
+                    <label class="file-label">
+                        📂 Open .md
+                        <input type="file" id="fileInput" accept=".md,.txt,.markdown">
+                    </label>
+                    <button class="btn-warning" onclick="startSpellCheck()">🔍 Spell Check</button>
+                </div>
+            </div>
+            <textarea id="editor" spellcheck="false" placeholder="Type or paste your markdown here...
+
+# Example Header
+
+This is a paragraph with **bold** and *italic* text.
+
+- List item 1
+- List item 2
+
+> A blockquote
+
+```
+code block
+```"></textarea>
+            <div class="stats">
+                <span id="wordCount">Words: 0</span>
+                <span id="charCount">Characters: 0</span>
+            </div>
+            
+            <!-- Spell Check Panel -->
+            <div class="spell-panel" id="spellPanel">
+                <div class="spell-header">
+                    <span class="spell-counter" id="spellCounter">Error 1 of 5</span>
+                    <div class="spell-nav">
+                        <button class="btn-secondary btn-small" onclick="prevError()">← Prev</button>
+                        <button class="btn-secondary btn-small" onclick="nextError()">Next →</button>
+                        <button class="btn-danger btn-small" onclick="closeSpellCheck()">✕ Close</button>
+                    </div>
+                </div>
+                <div class="spell-word-display">
+                    <div class="spell-word" id="currentWord">misspeled</div>
+                    <div class="spell-context" id="wordContext">...this is a <span class="highlight">misspeled</span> word in the...</div>
+                </div>
+                <div class="spell-suggestions">
+                    <div class="spell-suggestions-label">Suggestions (click to replace):</div>
+                    <div class="suggestion-buttons" id="suggestionButtons"></div>
+                </div>
+                <div class="custom-replace">
+                    <input type="text" id="customWord" placeholder="Or type custom replacement...">
+                    <button class="btn-primary btn-small" onclick="replaceWithCustom()">Replace</button>
+                </div>
+                <div class="spell-actions">
+                    <button class="btn-secondary" onclick="ignoreOnce()">Ignore Once</button>
+                    <button class="btn-secondary" onclick="ignoreAll()">Ignore All</button>
+                    <button class="btn-success" onclick="replaceAll()">Replace All</button>
+                </div>
+                <div class="shortcuts">
+                    <kbd>←</kbd> <kbd>→</kbd> navigate | <kbd>1</kbd>-<kbd>5</kbd> pick suggestion | <kbd>Enter</kbd> replace with input | <kbd>Esc</kbd> close
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Preview</span>
+                <div class="buttons">
+                    <button class="btn-success" onclick="exportPDF()">📄 Export PDF</button>
+                    <button class="btn-primary" onclick="exportDOC()">📝 Export DOC</button>
+                </div>
+            </div>
+            <div class="preview" id="preview"></div>
+        </div>
+    </div>
+    
+    <div id="loading">⏳ Generating...</div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        const preview = document.getElementById('preview');
+        const wordCountEl = document.getElementById('wordCount');
+        const charCountEl = document.getElementById('charCount');
+        const spellPanel = document.getElementById('spellPanel');
+        const spellCounter = document.getElementById('spellCounter');
+        const currentWordEl = document.getElementById('currentWord');
+        const wordContextEl = document.getElementById('wordContext');
+        const suggestionButtonsEl = document.getElementById('suggestionButtons');
+        const customWordInput = document.getElementById('customWord');
+        
+        let dictionary = null;
+        let spellErrors = [];
+        let currentErrorIndex = 0;
+        let ignoredWords = new Set();
+        
+        // Load dictionary
+        async function loadDictionary() {
+            if (dictionary) return dictionary;
+            try {
+                const [aff, dic] = await Promise.all([
+                    fetch('https://cdn.jsdelivr.net/npm/dictionary-en@3.2.0/index.aff').then(r => r.text()),
+                    fetch('https://cdn.jsdelivr.net/npm/dictionary-en@3.2.0/index.dic').then(r => r.text())
+                ]);
+                dictionary = new Typo('en_US', aff, dic);
+            } catch (e) {
+                console.error('Dictionary load failed:', e);
+                alert('Failed to load dictionary. Please check your internet connection.');
+            }
+            return dictionary;
+        }
+        
+        // Render markdown
+        function render() {
+            const text = editor.value;
+            preview.innerHTML = marked.parse(text);
+            
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            wordCountEl.textContent = `Words: ${words}`;
+            charCountEl.textContent = `Characters: ${text.length}`;
+        }
+        
+        let renderTimeout;
+        editor.addEventListener('input', () => {
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(render, 150);
+        });
+        
+        // File input
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    editor.value = e.target.result;
+                    render();
+                };
+                reader.readAsText(file);
+            }
+        });
+        
+        // Spell Check Functions
+        async function startSpellCheck() {
+            const dict = await loadDictionary();
+            if (!dict) return;
+            
+            const text = editor.value;
+            spellErrors = [];
+            ignoredWords.clear();
+            
+            // Find all word positions
+            const wordRegex = /[a-zA-Z']+/g;
+            let match;
+            const seenPositions = new Map(); // word -> first position
+            
+            while ((match = wordRegex.exec(text)) !== null) {
+                const word = match[0];
+                const lower = word.toLowerCase();
+                
+                // Skip short words, contractions, and already checked
+                if (word.length <= 1) continue;
+                if (word.includes("'")) continue;
+                
+                if (!dict.check(word) && !dict.check(lower) && !dict.check(word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())) {
+                    spellErrors.push({
+                        word: word,
+                        index: match.index,
+                        suggestions: dict.suggest(word).slice(0, 5)
+                    });
+                }
+            }
+            
+            if (spellErrors.length === 0) {
+                alert('✓ No spelling errors found!');
+                return;
+            }
+            
+            currentErrorIndex = 0;
+            spellPanel.classList.add('active');
+            showCurrentError();
+        }
+        
+        function showCurrentError() {
+            if (spellErrors.length === 0) {
+                closeSpellCheck();
+                return;
+            }
+            
+            const error = spellErrors[currentErrorIndex];
+            spellCounter.textContent = `Error ${currentErrorIndex + 1} of ${spellErrors.length}`;
+            currentWordEl.textContent = error.word;
+            
+            // Show context
+            const text = editor.value;
+            const start = Math.max(0, error.index - 30);
+            const end = Math.min(text.length, error.index + error.word.length + 30);
+            let context = text.slice(start, end);
+            
+            // Highlight the word in context
+            const relativeIndex = error.index - start;
+            const before = escapeHtml(context.slice(0, relativeIndex));
+            const word = escapeHtml(context.slice(relativeIndex, relativeIndex + error.word.length));
+            const after = escapeHtml(context.slice(relativeIndex + error.word.length));
+            
+            wordContextEl.innerHTML = `${start > 0 ? '...' : ''}${before}<span class="highlight">${word}</span>${after}${end < text.length ? '...' : ''}`;
+            
+            // Show suggestions
+            suggestionButtonsEl.innerHTML = error.suggestions.map((s, i) => 
+                `<button class="suggestion-btn" onclick="replaceWith('${escapeHtml(s)}')">${i + 1}. ${escapeHtml(s)}</button>`
+            ).join('');
+            
+            if (error.suggestions.length === 0) {
+                suggestionButtonsEl.innerHTML = '<span style="color: #888;">No suggestions available</span>';
+            }
+            
+            // Clear custom input
+            customWordInput.value = error.word;
+            
+            // Highlight in editor
+            editor.focus();
+            editor.setSelectionRange(error.index, error.index + error.word.length);
+        }
+        
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+        
+        function nextError() {
+            if (spellErrors.length === 0) return;
+            currentErrorIndex = (currentErrorIndex + 1) % spellErrors.length;
+            showCurrentError();
+        }
+        
+        function prevError() {
+            if (spellErrors.length === 0) return;
+            currentErrorIndex = (currentErrorIndex - 1 + spellErrors.length) % spellErrors.length;
+            showCurrentError();
+        }
+        
+        function replaceWith(newWord) {
+            if (spellErrors.length === 0) return;
+            
+            const error = spellErrors[currentErrorIndex];
+            const text = editor.value;
+            
+            // Replace the word
+            editor.value = text.slice(0, error.index) + newWord + text.slice(error.index + error.word.length);
+            render();
+            
+            // Adjust subsequent error positions
+            const diff = newWord.length - error.word.length;
+            for (let i = currentErrorIndex + 1; i < spellErrors.length; i++) {
+                spellErrors[i].index += diff;
+            }
+            
+            // Remove current error and show next
+            spellErrors.splice(currentErrorIndex, 1);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            
+            if (spellErrors.length === 0) {
+                alert('✓ All spelling errors corrected!');
+                closeSpellCheck();
+            } else {
+                showCurrentError();
+            }
+        }
+        
+        function replaceWithCustom() {
+            const newWord = customWordInput.value.trim();
+            if (newWord) {
+                replaceWith(newWord);
+            }
+        }
+        
+        function ignoreOnce() {
+            if (spellErrors.length === 0) return;
+            spellErrors.splice(currentErrorIndex, 1);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            if (spellErrors.length === 0) {
+                alert('✓ Spell check complete!');
+                closeSpellCheck();
+            } else {
+                showCurrentError();
+            }
+        }
+        
+        function ignoreAll() {
+            if (spellErrors.length === 0) return;
+            const word = spellErrors[currentErrorIndex].word.toLowerCase();
+            spellErrors = spellErrors.filter(e => e.word.toLowerCase() !== word);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            if (spellErrors.length === 0) {
+                alert('✓ Spell check complete!');
+                closeSpellCheck();
+            } else {
+                showCurrentError();
+            }
+        }
+        
+        function replaceAll() {
+            if (spellErrors.length === 0) return;
+            
+            const error = spellErrors[currentErrorIndex];
+            const newWord = customWordInput.value.trim() || (error.suggestions[0] || error.word);
+            const oldWord = error.word;
+            
+            // Replace all instances
+            let text = editor.value;
+            const regex = new RegExp(`\\b${oldWord}\\b`, 'g');
+            text = text.replace(regex, newWord);
+            editor.value = text;
+            render();
+            
+            // Remove all matching errors
+            spellErrors = spellErrors.filter(e => e.word !== oldWord);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            
+            if (spellErrors.length === 0) {
+                alert('✓ All spelling errors corrected!');
+                closeSpellCheck();
+            } else {
+                // Rerun spell check to fix positions
+                startSpellCheck();
+            }
+        }
+        
+        function closeSpellCheck() {
+            spellPanel.classList.remove('active');
+            spellErrors = [];
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!spellPanel.classList.contains('active')) return;
+            
+            if (e.key === 'Escape') {
+                closeSpellCheck();
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                nextError();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                prevError();
+            } else if (e.key >= '1' && e.key <= '5') {
+                const idx = parseInt(e.key) - 1;
+                const error = spellErrors[currentErrorIndex];
+                if (error && error.suggestions[idx]) {
+                    replaceWith(error.suggestions[idx]);
+                }
+            } else if (e.key === 'Enter' && document.activeElement === customWordInput) {
+                e.preventDefault();
+                replaceWithCustom();
+            }
+        });
+        
+        // Export PDF
+        async function exportPDF() {
+            document.getElementById('loading').style.display = 'block';
+            
+            const element = preview.cloneNode(true);
+            element.style.padding = '40px';
+            element.style.background = '#fff';
+            element.style.color = '#222';
+            element.style.height = 'auto';
+            element.style.maxHeight = 'none';
+            element.style.overflow = 'visible';
+            element.style.position = 'absolute';
+            element.style.left = '-9999px';
+            element.style.top = '0';
+            element.style.width = '6.5in';
+            document.body.appendChild(element);
+            
+            const opt = {
+                margin: [0.75, 0.75],
+                filename: 'document.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+            
+            try {
+                await html2pdf().set(opt).from(element).save();
+            } catch (e) {
+                alert('PDF generation failed: ' + e.message);
+            }
+            document.body.removeChild(element);
+            
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        // Export DOC
+        function exportDOC() {
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; max-width: 6.5in; margin: 1in auto; }
+                        h1 { font-size: 18pt; margin-top: 24pt; }
+                        h2 { font-size: 16pt; margin-top: 18pt; }
+                        h3 { font-size: 14pt; margin-top: 14pt; }
+                        p { margin: 12pt 0; }
+                        ul, ol { margin: 12pt 0; padding-left: 0.5in; }
+                        li { margin: 6pt 0; }
+                        code { font-family: 'Courier New', monospace; background: #f0f0f0; padding: 2px 4px; }
+                        pre { font-family: 'Courier New', monospace; background: #f0f0f0; padding: 12pt; margin: 12pt 0; white-space: pre-wrap; }
+                        blockquote { margin: 12pt 0; padding-left: 0.5in; border-left: 3pt solid #ccc; color: #555; }
+                        table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+                        th, td { border: 1pt solid #000; padding: 6pt; }
+                    </style>
+                </head>
+                <body>${preview.innerHTML}</body>
+                </html>
+            `;
+            
+            const blob = new Blob([html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'document.doc';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initial render
+        render();
+        
+        // Preload dictionary
+        loadDictionary();
+    </script>
+</body>
+</html>

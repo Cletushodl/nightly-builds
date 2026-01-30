@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>РусКарт — Russian Flashcards</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --card: #222636;
+  --accent: #6c63ff; --accent2: #ff6b6b; --green: #4ecdc4;
+  --text: #e8e8e8; --muted: #8888aa; --border: #2a2e3e;
+}
+body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; display: flex; flex-direction: column; }
+header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+header h1 { font-size: 1.3rem; }
+header h1 span { color: var(--accent); }
+.stats-bar { display: flex; gap: 16px; font-size: 0.85rem; color: var(--muted); }
+.stats-bar b { color: var(--text); }
+
+/* Navigation */
+nav { display: flex; border-bottom: 1px solid var(--border); }
+nav button { flex: 1; padding: 12px; background: none; border: none; color: var(--muted); font-size: 0.9rem; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Views */
+.view { display: none; flex: 1; overflow-y: auto; }
+.view.active { display: flex; flex-direction: column; }
+
+/* Study View */
+#study-view { align-items: center; justify-content: center; padding: 20px; gap: 20px; }
+.card-container { perspective: 800px; width: 100%; max-width: 400px; height: 260px; cursor: pointer; }
+.card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.5s; transform-style: preserve-3d; }
+.card-container.flipped .card-inner { transform: rotateY(180deg); }
+.card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; background: var(--card); border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; border: 1px solid var(--border); }
+.card-back { transform: rotateY(180deg); }
+.card-face .word { font-size: 2.2rem; font-weight: 700; margin-bottom: 8px; }
+.card-face .hint { font-size: 0.9rem; color: var(--muted); }
+.card-face .phonetic { font-size: 1.1rem; color: var(--green); margin-top: 4px; }
+.card-face .example { font-size: 0.85rem; color: var(--muted); margin-top: 12px; font-style: italic; text-align: center; }
+.tap-hint { font-size: 0.8rem; color: var(--muted); }
+
+.rating-btns { display: flex; gap: 10px; width: 100%; max-width: 400px; }
+.rating-btns button { flex: 1; padding: 14px 8px; border: none; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: transform 0.1s; }
+.rating-btns button:active { transform: scale(0.95); }
+.btn-again { background: var(--accent2); color: white; }
+.btn-hard { background: #e8a838; color: #1a1a1a; }
+.btn-good { background: var(--green); color: #1a1a1a; }
+.btn-easy { background: var(--accent); color: white; }
+.rating-btns .next-txt { display: block; font-size: 0.7rem; font-weight: 400; opacity: 0.8; margin-top: 2px; }
+
+.empty-state { text-align: center; color: var(--muted); padding: 40px; }
+.empty-state .emoji { font-size: 3rem; margin-bottom: 12px; }
+
+/* Deck View */
+#deck-view { padding: 16px; gap: 12px; }
+.deck-header { display: flex; justify-content: space-between; align-items: center; }
+.deck-header h2 { font-size: 1.1rem; }
+.add-btn { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; }
+.search-box { width: 100%; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.95rem; }
+.word-list { display: flex; flex-direction: column; gap: 6px; }
+.word-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--card); border-radius: 10px; border: 1px solid var(--border); }
+.word-item .ru { font-size: 1.05rem; font-weight: 600; }
+.word-item .en { font-size: 0.85rem; color: var(--muted); }
+.word-item .level { font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; }
+.level-new { background: #333; color: var(--muted); }
+.level-learning { background: #3a2a10; color: #e8a838; }
+.level-review { background: #1a3a2a; color: var(--green); }
+.level-mature { background: #1a1a3a; color: var(--accent); }
+.word-item-actions { display: flex; gap: 8px; align-items: center; }
+.del-btn { background: none; border: none; color: var(--accent2); cursor: pointer; font-size: 1.1rem; opacity: 0.5; }
+.del-btn:hover { opacity: 1; }
+
+/* Add/Edit Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: 16px 16px 0 0; padding: 24px; width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+.modal h3 { margin-bottom: 16px; }
+.modal label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+.modal input, .modal textarea { width: 100%; padding: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 1rem; }
+.modal textarea { height: 60px; resize: vertical; }
+.modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+.modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 0.95rem; cursor: pointer; }
+.save-btn { background: var(--accent); color: white; font-weight: 600; }
+.cancel-btn { background: var(--card); color: var(--muted); }
+
+/* Import/Export */
+.import-export { display: flex; gap: 10px; padding: 0 0 12px; }
+.import-export button { padding: 6px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
+
+/* Progress View */
+#progress-view { padding: 20px; gap: 16px; }
+.progress-card { background: var(--card); border-radius: 12px; padding: 16px; border: 1px solid var(--border); }
+.progress-card h3 { font-size: 0.95rem; color: var(--muted); margin-bottom: 12px; }
+.progress-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.progress-stat { text-align: center; }
+.progress-stat .num { font-size: 1.8rem; font-weight: 700; }
+.progress-stat .label { font-size: 0.75rem; color: var(--muted); }
+.streak-bar { display: flex; gap: 4px; justify-content: center; margin-top: 8px; }
+.streak-day { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: var(--muted); }
+.streak-day.active { background: var(--accent); color: white; }
+.streak-day.inactive { background: var(--card); border: 1px solid var(--border); }
+.bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 80px; margin-top: 8px; }
+.bar { flex: 1; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.3s; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🇷🇺 <span>Рус</span>Карт</h1>
+  <div class="stats-bar">
+    <span>Due: <b id="due-count">0</b></span>
+    <span>Total: <b id="total-count">0</b></span>
+  </div>
+</header>
+
+<nav>
+  <button class="active" data-view="study">📚 Study</button>
+  <button data-view="deck">🗂 Deck</button>
+  <button data-view="progress">📊 Progress</button>
+</nav>
+
+<div id="study-view" class="view active"></div>
+
+<div id="deck-view" class="view">
+  <div class="deck-header">
+    <h2>Your Words</h2>
+    <button class="add-btn" id="add-word-btn">+ Add Word</button>
+  </div>
+  <input type="text" class="search-box" placeholder="Search words..." id="search-input">
+  <div class="import-export">
+    <button id="import-btn">📥 Import CSV</button>
+    <button id="export-btn">📤 Export CSV</button>
+    <button id="load-starter-btn">🚀 Load Starter Pack</button>
+    <input type="file" id="import-file" accept=".csv,.txt" hidden>
+  </div>
+  <div class="word-list" id="word-list"></div>
+</div>
+
+<div id="progress-view" class="view"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Add Word</h3>
+    <label>Russian</label>
+    <input type="text" id="inp-ru" placeholder="слово">
+    <label>English</label>
+    <input type="text" id="inp-en" placeholder="word">
+    <label>Pronunciation (optional)</label>
+    <input type="text" id="inp-phonetic" placeholder="slovo">
+    <label>Example sentence (optional)</label>
+    <textarea id="inp-example" placeholder="Это хорошее слово."></textarea>
+    <label>Tags (comma separated, optional)</label>
+    <input type="text" id="inp-tags" placeholder="basics, greetings">
+    <div class="modal-btns">
+      <button class="cancel-btn" id="modal-cancel">Cancel</button>
+      <button class="save-btn" id="modal-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Data Store ---
+const STORAGE_KEY = 'ruskart_data';
+const HISTORY_KEY = 'ruskart_history';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+function save(cards) { localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); }
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || {}; } catch { return {}; }
+}
+function saveHistory(h) { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); }
+
+// --- SM-2 Spaced Repetition ---
+function getNextReview(card, quality) {
+  // quality: 0=again, 1=hard, 2=good, 3=easy
+  let { interval = 0, ease = 2.5, repetitions = 0 } = card;
+  
+  if (quality < 1) {
+    // Again → reset
+    repetitions = 0;
+    interval = 1; // 1 minute
+  } else if (quality === 1) {
+    // Hard
+    if (repetitions === 0) { interval = 1; }
+    else if (repetitions === 1) { interval = 6; }
+    else { interval = Math.round(interval * 1.2); }
+    ease = Math.max(1.3, ease - 0.15);
+    repetitions++;
+  } else if (quality === 2) {
+    // Good
+    if (repetitions === 0) { interval = 1; }
+    else if (repetitions === 1) { interval = 10; }
+    else { interval = Math.round(interval * ease); }
+    repetitions++;
+  } else {
+    // Easy
+    if (repetitions === 0) { interval = 10; }
+    else if (repetitions === 1) { interval = 1440; } // 1 day
+    else { interval = Math.round(interval * ease * 1.3); }
+    ease = Math.min(3.0, ease + 0.15);
+    repetitions++;
+  }
+  
+  const nextReview = Date.now() + interval * 60 * 1000;
+  return { interval, ease, repetitions, nextReview };
+}
+
+function isDue(card) {
+  return !card.nextReview || card.nextReview <= Date.now();
+}
+
+function getLevel(card) {
+  if (!card.repetitions || card.repetitions === 0) return 'new';
+  if (card.interval < 1440) return 'learning';
+  if (card.interval < 10080) return 'review';
+  return 'mature';
+}
+
+// --- Navigation ---
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.view + '-view').classList.add('active');
+    render();
+  });
+});
+
+// --- Render ---
+let currentCard = null;
+let isFlipped = false;
+let studyQueue = [];
+
+function updateCounts() {
+  const cards = load();
+  const due = cards.filter(isDue).length;
+  document.getElementById('due-count').textContent = due;
+  document.getElementById('total-count').textContent = cards.length;
+}
+
+function render() {
+  updateCounts();
+  const activeView = document.querySelector('.view.active').id;
+  if (activeView === 'study-view') renderStudy();
+  else if (activeView === 'deck-view') renderDeck();
+  else if (activeView === 'progress-view') renderProgress();
+}
+
+function renderStudy() {
+  const el = document.getElementById('study-view');
+  const cards = load();
+  const due = cards.filter(isDue);
+  
+  if (due.length === 0) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="emoji">🎉</div>
+      <p>${cards.length === 0 ? 'No words yet! Go to Deck to add some.' : 'All caught up! Come back later.'}</p>
+    </div>`;
+    return;
+  }
+  
+  // Pick next card (prioritize lower intervals / new cards)
+  if (!studyQueue.length) {
+    studyQueue = due.sort((a, b) => (a.interval || 0) - (b.interval || 0)).map(c => c.id);
+  }
+  
+  const cardId = studyQueue[0];
+  currentCard = cards.find(c => c.id === cardId);
+  if (!currentCard) { studyQueue.shift(); renderStudy(); return; }
+  isFlipped = false;
+  
+  const level = getLevel(currentCard);
+  el.innerHTML = `
+    <div style="font-size:0.85rem;color:var(--muted)">${due.length} cards remaining</div>
+    <div class="card-container" id="flashcard">
+      <div class="card-inner">
+        <div class="card-face card-front">
+          <div class="word">${esc(currentCard.ru)}</div>
+          ${currentCard.phonetic ? `<div class="phonetic">[${esc(currentCard.phonetic)}]</div>` : ''}
+          <div class="hint">What does this mean?</div>
+        </div>
+        <div class="card-face card-back">
+          <div class="word">${esc(currentCard.en)}</div>
+          <div class="phonetic" style="color:var(--accent)">${esc(currentCard.ru)}</div>
+          ${currentCard.example ? `<div class="example">${esc(currentCard.example)}</div>` : ''}
+        </div>
+      </div>
+    </div>
+    <div class="tap-hint" id="tap-hint">Tap card to flip</div>
+    <div class="rating-btns" id="rating-btns" style="display:none">
+      <button class="btn-again" data-q="0">Again<span class="next-txt">1m</span></button>
+      <button class="btn-hard" data-q="1">Hard<span class="next-txt">${fmtInterval(currentCard, 1)}</span></button>
+      <button class="btn-good" data-q="2">Good<span class="next-txt">${fmtInterval(currentCard, 2)}</span></button>
+      <button class="btn-easy" data-q="3">Easy<span class="next-txt">${fmtInterval(currentCard, 3)}</span></button>
+    </div>
+  `;
+  
+  document.getElementById('flashcard').addEventListener('click', () => {
+    document.getElementById('flashcard').classList.toggle('flipped');
+    isFlipped = !isFlipped;
+    if (isFlipped) {
+      document.getElementById('tap-hint').style.display = 'none';
+      document.getElementById('rating-btns').style.display = 'flex';
+    }
+  });
+  
+  document.querySelectorAll('.rating-btns button').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const q = parseInt(btn.dataset.q);
+      rateCard(currentCard.id, q);
+    });
+  });
+}
+
+function fmtInterval(card, quality) {
+  const { interval } = getNextReview({...card}, quality);
+  if (interval < 60) return interval + 'm';
+  if (interval < 1440) return Math.round(interval / 60) + 'h';
+  return Math.round(interval / 1440) + 'd';
+}
+
+function rateCard(id, quality) {
+  const cards = load();
+  const idx = cards.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  
+  const updates = getNextReview(cards[idx], quality);
+  Object.assign(cards[idx], updates);
+  cards[idx].lastReviewed = Date.now();
+  save(cards);
+  
+  // Record history
+  const h = loadHistory();
+  const today = new Date().toISOString().slice(0, 10);
+  if (!h[today]) h[today] = { reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 };
+  h[today].reviewed++;
+  h[today][['again','hard','good','easy'][quality]]++;
+  saveHistory(h);
+  
+  studyQueue.shift();
+  renderStudy();
+}
+
+function renderDeck() {
+  const cards = load();
+  const q = (document.getElementById('search-input').value || '').toLowerCase();
+  const filtered = q ? cards.filter(c => c.ru.toLowerCase().includes(q) || c.en.toLowerCase().includes(q)) : cards;
+  
+  const list = document.getElementById('word-list');
+  list.innerHTML = filtered.sort((a,b) => a.ru.localeCompare(b.ru, 'ru')).map(c => {
+    const level = getLevel(c);
+    return `<div class="word-item">
+      <div><div class="ru">${esc(c.ru)}</div><div class="en">${esc(c.en)}</div></div>
+      <div class="word-item-actions">
+        <span class="level level-${level}">${level}</span>
+        <button class="del-btn" data-id="${c.id}">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  
+  list.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Delete this word?')) return;
+      const cards = load().filter(c => c.id !== btn.dataset.id);
+      save(cards);
+      render();
+    });
+  });
+}
+
+function renderProgress() {
+  const cards = load();
+  const history = loadHistory();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayStats = history[today] || { reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 };
+  
+  const levels = { new: 0, learning: 0, review: 0, mature: 0 };
+  cards.forEach(c => levels[getLevel(c)]++);
+  
+  // Last 7 days
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const key = d.toISOString().slice(0, 10);
+    const dayName = d.toLocaleDateString('en', { weekday: 'short' });
+    last7.push({ day: dayName, count: (history[key] || {}).reviewed || 0, key });
+  }
+  const maxCount = Math.max(1, ...last7.map(d => d.count));
+  
+  // Streak
+  let streak = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    if (history[d] && history[d].reviewed > 0) streak++;
+    else break;
+  }
+  
+  const el = document.getElementById('progress-view');
+  el.innerHTML = `
+    <div class="progress-card">
+      <h3>Today's Session</h3>
+      <div class="progress-grid">
+        <div class="progress-stat"><div class="num">${todayStats.reviewed}</div><div class="label">Reviewed</div></div>
+        <div class="progress-stat"><div class="num" style="color:var(--green)">${todayStats.good + todayStats.easy}</div><div class="label">Correct</div></div>
+        <div class="progress-stat"><div class="num" style="color:var(--accent2)">${todayStats.again}</div><div class="label">Again</div></div>
+        <div class="progress-stat"><div class="num" style="color:var(--accent)">${streak}</div><div class="label">Day Streak 🔥</div></div>
+      </div>
+    </div>
+    <div class="progress-card">
+      <h3>Word Breakdown</h3>
+      <div class="progress-grid">
+        <div class="progress-stat"><div class="num" style="color:var(--muted)">${levels.new}</div><div class="label">New</div></div>
+        <div class="progress-stat"><div class="num" style="color:#e8a838">${levels.learning}</div><div class="label">Learning</div></div>
+        <div class="progress-stat"><div class="num" style="color:var(--green)">${levels.review}</div><div class="label">Review</div></div>
+        <div class="progress-stat"><div class="num" style="color:var(--accent)">${levels.mature}</div><div class="label">Mature</div></div>
+      </div>
+    </div>
+    <div class="progress-card">
+      <h3>Last 7 Days</h3>
+      <div class="bar-chart">
+        ${last7.map(d => `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:4px">
+          <div class="bar" style="height:${Math.max(2, (d.count / maxCount) * 70)}px"></div>
+          <span style="font-size:0.65rem;color:var(--muted)">${d.day}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// --- Modal ---
+document.getElementById('add-word-btn').addEventListener('click', () => {
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('modal-title').textContent = 'Add Word';
+  ['ru','en','phonetic','example','tags'].forEach(f => document.getElementById('inp-'+f).value = '');
+  document.getElementById('inp-ru').focus();
+});
+document.getElementById('modal-cancel').addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('modal-save').addEventListener('click', () => {
+  const ru = document.getElementById('inp-ru').value.trim();
+  const en = document.getElementById('inp-en').value.trim();
+  if (!ru || !en) return alert('Russian and English are required');
+  
+  const cards = load();
+  cards.push({
+    id: crypto.randomUUID(),
+    ru, en,
+    phonetic: document.getElementById('inp-phonetic').value.trim(),
+    example: document.getElementById('inp-example').value.trim(),
+    tags: document.getElementById('inp-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+    interval: 0, ease: 2.5, repetitions: 0, nextReview: 0,
+    created: Date.now()
+  });
+  save(cards);
+  document.getElementById('modal').classList.remove('open');
+  studyQueue = [];
+  render();
+});
+
+// --- Search ---
+document.getElementById('search-input').addEventListener('input', () => renderDeck());
+
+// --- Import/Export ---
+document.getElementById('export-btn').addEventListener('click', () => {
+  const cards = load();
+  const csv = 'russian,english,phonetic,example,tags\n' + 
+    cards.map(c => [c.ru, c.en, c.phonetic||'', c.example||'', (c.tags||[]).join(';')].map(f => `"${f.replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ruskart_export.csv';
+  a.click();
+});
+
+document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
+document.getElementById('import-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const lines = ev.target.result.split('\n').slice(1).filter(l => l.trim());
+    const cards = load();
+    let added = 0;
+    lines.forEach(line => {
+      const parts = line.match(/(".*?"|[^,]+)/g);
+      if (!parts || parts.length < 2) return;
+      const clean = s => (s||'').replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+      const ru = clean(parts[0]), en = clean(parts[1]);
+      if (!ru || !en) return;
+      if (cards.some(c => c.ru === ru)) return; // skip dupes
+      cards.push({
+        id: crypto.randomUUID(), ru, en,
+        phonetic: clean(parts[2]),
+        example: clean(parts[3]),
+        tags: (clean(parts[4])||'').split(';').filter(Boolean),
+        interval: 0, ease: 2.5, repetitions: 0, nextReview: 0,
+        created: Date.now()
+      });
+      added++;
+    });
+    save(cards);
+    alert(`Imported ${added} words`);
+    studyQueue = [];
+    render();
+  };
+  reader.readAsText(file);
+});
+
+// --- Starter Pack ---
+const STARTER = [
+  {ru:'привет',en:'hello',phonetic:'privet'},
+  {ru:'спасибо',en:'thank you',phonetic:'spasibo'},
+  {ru:'пожалуйста',en:'please / you\'re welcome',phonetic:'pozhaluysta'},
+  {ru:'да',en:'yes',phonetic:'da'},
+  {ru:'нет',en:'no',phonetic:'nyet'},
+  {ru:'хорошо',en:'good / okay',phonetic:'khorosho'},
+  {ru:'плохо',en:'bad',phonetic:'plokho'},
+  {ru:'вода',en:'water',phonetic:'voda'},
+  {ru:'еда',en:'food',phonetic:'yeda'},
+  {ru:'дом',en:'house / home',phonetic:'dom'},
+  {ru:'книга',en:'book',phonetic:'kniga'},
+  {ru:'человек',en:'person',phonetic:'chelovek'},
+  {ru:'время',en:'time',phonetic:'vremya'},
+  {ru:'день',en:'day',phonetic:'den\''},
+  {ru:'ночь',en:'night',phonetic:'noch\''},
+  {ru:'большой',en:'big',phonetic:'bol\'shoy'},
+  {ru:'маленький',en:'small',phonetic:'malen\'kiy'},
+  {ru:'новый',en:'new',phonetic:'novyy'},
+  {ru:'старый',en:'old',phonetic:'staryy'},
+  {ru:'красивый',en:'beautiful',phonetic:'krasivyy'},
+  {ru:'я',en:'I',phonetic:'ya'},
+  {ru:'ты',en:'you (informal)',phonetic:'ty'},
+  {ru:'он',en:'he',phonetic:'on'},
+  {ru:'она',en:'she',phonetic:'ona'},
+  {ru:'мы',en:'we',phonetic:'my'},
+  {ru:'они',en:'they',phonetic:'oni'},
+  {ru:'говорить',en:'to speak',phonetic:'govorit\''},
+  {ru:'знать',en:'to know',phonetic:'znat\''},
+  {ru:'хотеть',en:'to want',phonetic:'khotet\''},
+  {ru:'мочь',en:'to be able / can',phonetic:'moch\''},
+  {ru:'работа',en:'work / job',phonetic:'rabota'},
+  {ru:'деньги',en:'money',phonetic:'den\'gi'},
+  {ru:'кошка',en:'cat',phonetic:'koshka',example:'У меня две кошки. — I have two cats.'},
+  {ru:'любовь',en:'love',phonetic:'lyubov\''},
+  {ru:'друг',en:'friend',phonetic:'druk'},
+  {ru:'сегодня',en:'today',phonetic:'sevodnya'},
+  {ru:'завтра',en:'tomorrow',phonetic:'zavtra'},
+  {ru:'вчера',en:'yesterday',phonetic:'vchera'},
+  {ru:'здесь',en:'here',phonetic:'zdes\''},
+  {ru:'там',en:'there',phonetic:'tam'},
+  {ru:'почему',en:'why',phonetic:'pochemu'},
+  {ru:'потому что',en:'because',phonetic:'potomu shto'},
+  {ru:'как',en:'how',phonetic:'kak'},
+  {ru:'где',en:'where',phonetic:'gde'},
+  {ru:'когда',en:'when',phonetic:'kogda'},
+  {ru:'что',en:'what',phonetic:'shto'},
+  {ru:'кто',en:'who',phonetic:'kto'},
+  {ru:'очень',en:'very',phonetic:'ochen\''},
+  {ru:'тоже',en:'also / too',phonetic:'tozhe'},
+  {ru:'биткоин',en:'bitcoin',phonetic:'bitkoin',example:'Биткоин — это свобода. — Bitcoin is freedom.'},
+];
+
+document.getElementById('load-starter-btn').addEventListener('click', () => {
+  const cards = load();
+  let added = 0;
+  STARTER.forEach(s => {
+    if (cards.some(c => c.ru === s.ru)) return;
+    cards.push({
+      id: crypto.randomUUID(), ...s, tags: [],
+      interval: 0, ease: 2.5, repetitions: 0, nextReview: 0,
+      created: Date.now()
+    });
+    added++;
+  });
+  save(cards);
+  alert(`Added ${added} starter words (${STARTER.length - added} already existed)`);
+  studyQueue = [];
+  render();
+});
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// Init
+render();
+</script>
+</body>
+</html>

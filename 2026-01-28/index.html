@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Trainer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #a8dadc;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .controls button {
+            padding: 8px 16px;
+            border: 2px solid #457b9d;
+            background: transparent;
+            color: #a8dadc;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .controls button:hover {
+            background: #457b9d;
+            color: #fff;
+        }
+        
+        .controls button.active {
+            background: #457b9d;
+            color: #fff;
+        }
+        
+        .staff-container {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        #staff {
+            display: block;
+        }
+        
+        .score {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+        
+        .score span {
+            color: #a8dadc;
+        }
+        
+        .score .value {
+            color: #f1faee;
+            font-weight: bold;
+        }
+        
+        .streak {
+            color: #e9c46a !important;
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            max-width: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .note-btn {
+            padding: 15px 10px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            background: #2d4263;
+            color: #f1faee;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .note-btn:hover {
+            background: #457b9d;
+            transform: translateY(-2px);
+        }
+        
+        .note-btn:active {
+            transform: translateY(0);
+        }
+        
+        .note-btn.correct {
+            background: #2a9d8f;
+            animation: pulse 0.3s;
+        }
+        
+        .note-btn.wrong {
+            background: #e63946;
+            animation: shake 0.3s;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .feedback {
+            height: 40px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        .feedback.correct {
+            color: #2a9d8f;
+        }
+        
+        .feedback.wrong {
+            color: #e63946;
+        }
+        
+        #next-btn {
+            padding: 12px 30px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            background: #457b9d;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        #next-btn:hover {
+            background: #1d3557;
+        }
+        
+        #next-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .hint {
+            margin-top: 20px;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        /* Keyboard hints */
+        .key-hint {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            display: block;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Note Trainer</h1>
+    
+    <div class="controls">
+        <button id="treble-btn" class="active" onclick="setClef('treble')">𝄞 Treble</button>
+        <button id="bass-btn" onclick="setClef('bass')">𝄢 Bass</button>
+        <button id="mixed-btn" onclick="setClef('mixed')">Mixed</button>
+    </div>
+    
+    <div class="staff-container">
+        <svg id="staff" width="280" height="200" viewBox="0 0 280 200"></svg>
+    </div>
+    
+    <div class="score">
+        <span>Score: <span class="value" id="score">0/0</span></span>
+        <span>Streak: <span class="value streak" id="streak">0 🔥</span></span>
+    </div>
+    
+    <div class="feedback" id="feedback"></div>
+    
+    <div class="buttons" id="buttons">
+        <button class="note-btn" data-note="C" onclick="guess('C')">C<span class="key-hint">1</span></button>
+        <button class="note-btn" data-note="D" onclick="guess('D')">D<span class="key-hint">2</span></button>
+        <button class="note-btn" data-note="E" onclick="guess('E')">E<span class="key-hint">3</span></button>
+        <button class="note-btn" data-note="F" onclick="guess('F')">F<span class="key-hint">4</span></button>
+        <button class="note-btn" data-note="G" onclick="guess('G')">G<span class="key-hint">5</span></button>
+        <button class="note-btn" data-note="A" onclick="guess('A')">A<span class="key-hint">6</span></button>
+        <button class="note-btn" data-note="B" onclick="guess('B')">B<span class="key-hint">7</span></button>
+    </div>
+    
+    <button id="next-btn" onclick="nextNote()">Next Note →</button>
+    
+    <p class="hint">Keyboard: 1-7 for notes, Space/Enter for next</p>
+
+    <script>
+        // Audio
+        let audioCtx=null;
+        const NOTE_FREQ={
+          'C2':65.41,'D2':73.42,'E2':82.41,'F2':87.31,'G2':98.00,'A2':110.00,'B2':123.47,
+          'C3':130.81,'D3':146.83,'E3':164.81,'F3':174.61,'G3':196.00,'A3':220.00,'B3':246.94,
+          'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
+          'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99,'A5':880.00,'B5':987.77
+        };
+        function ensureAudio(){
+          if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+          if(audioCtx.state==='suspended')audioCtx.resume();
+        }
+        document.addEventListener('touchstart',ensureAudio,{once:true});
+        document.addEventListener('click',ensureAudio,{once:true});
+
+        function playTone(note,octave){
+          ensureAudio();
+          let freq=NOTE_FREQ[note+octave];
+          if(!freq)return;
+          let osc=audioCtx.createOscillator();
+          let gain=audioCtx.createGain();
+          osc.type='sine';
+          osc.frequency.value=freq;
+          gain.gain.setValueAtTime(0.3,audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+1.2);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime+1.2);
+        }
+
+        // State
+        let currentClef = 'treble';
+        let currentNote = null;
+        let currentPosition = 0;
+        let correct = 0;
+        let total = 0;
+        let streak = 0;
+        let answered = false;
+        
+        // Note definitions - position 0 is middle line
+        // Treble: middle line = B4, Bass: middle line = D3
+        // Positions go from -6 (below staff) to +6 (above staff)
+        // Treble clef: Lines = E-G-B-D-F, Spaces = F-A-C-E
+        const trebleNotes = [
+            { pos: -6, note: 'C', octave: 4 },  // middle C (ledger below staff)
+            { pos: -5, note: 'D', octave: 4 },  // space below bottom line
+            { pos: -4, note: 'E', octave: 4 },  // bottom line (1st line)
+            { pos: -3, note: 'F', octave: 4 },  // 1st space
+            { pos: -2, note: 'G', octave: 4 },  // 2nd line
+            { pos: -1, note: 'A', octave: 4 },  // 2nd space
+            { pos: 0, note: 'B', octave: 4 },   // middle line (3rd line)
+            { pos: 1, note: 'C', octave: 5 },   // 3rd space
+            { pos: 2, note: 'D', octave: 5 },   // 4th line
+            { pos: 3, note: 'E', octave: 5 },   // 4th space
+            { pos: 4, note: 'F', octave: 5 },   // top line (5th line)
+            { pos: 5, note: 'G', octave: 5 },   // space above
+            { pos: 6, note: 'A', octave: 5 },   // ledger above
+        ];
+        
+        // Bass clef: Lines = G-B-D-F-A, Spaces = A-C-E-G
+        const bassNotes = [
+            { pos: -6, note: 'E', octave: 2 },  // ledger below
+            { pos: -5, note: 'F', octave: 2 },  // space below bottom line
+            { pos: -4, note: 'G', octave: 2 },  // bottom line (1st line)
+            { pos: -3, note: 'A', octave: 2 },  // 1st space
+            { pos: -2, note: 'B', octave: 2 },  // 2nd line
+            { pos: -1, note: 'C', octave: 3 },  // 2nd space
+            { pos: 0, note: 'D', octave: 3 },   // middle line (3rd line)
+            { pos: 1, note: 'E', octave: 3 },   // 3rd space
+            { pos: 2, note: 'F', octave: 3 },   // 4th line (F clef line)
+            { pos: 3, note: 'G', octave: 3 },   // 4th space
+            { pos: 4, note: 'A', octave: 3 },   // top line (5th line)
+            { pos: 5, note: 'B', octave: 3 },   // space above
+            { pos: 6, note: 'C', octave: 4 },   // middle C (ledger above)
+        ];
+        
+        function setClef(clef) {
+            currentClef = clef;
+            document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+            document.getElementById(clef + '-btn').classList.add('active');
+            nextNote();
+        }
+        
+        function getActiveClef() {
+            if (currentClef === 'mixed') {
+                return Math.random() < 0.5 ? 'treble' : 'bass';
+            }
+            return currentClef;
+        }
+        
+        function drawStaff() {
+            const svg = document.getElementById('staff');
+            const clef = getActiveClef();
+            const notes = clef === 'treble' ? trebleNotes : bassNotes;
+            
+            // Pick random note
+            const noteData = notes[Math.floor(Math.random() * notes.length)];
+            currentNote = noteData.note;
+            currentPosition = noteData.pos;
+            playTone(noteData.note, noteData.octave);
+            
+            // Staff dimensions
+            const width = 280;
+            const height = 200;
+            const staffTop = 60;
+            const lineSpacing = 15;
+            const staffLeft = 60;
+            const staffRight = width - 20;
+            
+            let html = '';
+            
+            // Background
+            html += `<rect x="0" y="0" width="${width}" height="${height}" fill="#16213e"/>`;
+            
+            // Draw 5 staff lines
+            for (let i = 0; i < 5; i++) {
+                const y = staffTop + i * lineSpacing;
+                html += `<line x1="${staffLeft}" y1="${y}" x2="${staffRight}" y2="${y}" stroke="#6c757d" stroke-width="1.5"/>`;
+            }
+            
+            // Draw clef
+            if (clef === 'treble') {
+                // Treble clef (𝄞) - positioned on G line (second from bottom)
+                html += `<text x="65" y="${staffTop + 3.5 * lineSpacing}" font-size="70" fill="#a8dadc" font-family="serif">𝄞</text>`;
+            } else {
+                // Bass clef (𝄢) - positioned on F line (second from top)
+                html += `<text x="65" y="${staffTop + 2.8 * lineSpacing}" font-size="55" fill="#a8dadc" font-family="serif">𝄢</text>`;
+            }
+            
+            // Note position (0 = middle line, which is line index 2)
+            // For treble: line 2 (middle) = B4, so pos 0 = B4
+            // Actually let's recalculate: pos -4 should be line 4 (bottom), pos 4 should be line 0 (top)
+            // Middle line (2) is pos 0
+            const noteX = 180;
+            const middleLineY = staffTop + 2 * lineSpacing;
+            const noteY = middleLineY - (currentPosition * lineSpacing / 2);
+            
+            // Draw ledger lines if needed
+            const ledgerWidth = 35;
+            if (currentPosition <= -5) {
+                // Ledger line below staff (pos -6 needs ledger at line 5, pos -5 is on it)
+                const ledgerY = staffTop + 5 * lineSpacing;
+                html += `<line x1="${noteX - ledgerWidth/2}" y1="${ledgerY}" x2="${noteX + ledgerWidth/2}" y2="${ledgerY}" stroke="#6c757d" stroke-width="1.5"/>`;
+            }
+            if (currentPosition >= 5) {
+                // Ledger line above staff (pos 6 needs ledger at line -1)
+                const ledgerY = staffTop - lineSpacing;
+                html += `<line x1="${noteX - ledgerWidth/2}" y1="${ledgerY}" x2="${noteX + ledgerWidth/2}" y2="${ledgerY}" stroke="#6c757d" stroke-width="1.5"/>`;
+            }
+            
+            // Draw note (whole note style)
+            html += `<ellipse cx="${noteX}" cy="${noteY}" rx="12" ry="9" fill="none" stroke="#f1faee" stroke-width="2.5" transform="rotate(-15 ${noteX} ${noteY})"/>`;
+            
+            svg.innerHTML = html;
+            
+            // Reset state
+            answered = false;
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('feedback').className = 'feedback';
+            document.querySelectorAll('.note-btn').forEach(b => {
+                b.classList.remove('correct', 'wrong');
+                b.disabled = false;
+            });
+        }
+        
+        function guess(note) {
+            if (answered) return;
+            answered = true;
+            
+            const btn = document.querySelector(`[data-note="${note}"]`);
+            const correctBtn = document.querySelector(`[data-note="${currentNote}"]`);
+            const feedback = document.getElementById('feedback');
+            
+            total++;
+            
+            if (note === currentNote) {
+                correct++;
+                streak++;
+                btn.classList.add('correct');
+                feedback.textContent = '✓ Correct!';
+                feedback.className = 'feedback correct';
+                
+                // Auto-advance after 800ms on correct
+                setTimeout(() => {
+                    if (answered) nextNote();
+                }, 800);
+            } else {
+                streak = 0;
+                btn.classList.add('wrong');
+                correctBtn.classList.add('correct');
+                feedback.textContent = `✗ It was ${currentNote}`;
+                feedback.className = 'feedback wrong';
+            }
+            
+            updateScore();
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = `${correct}/${total}`;
+            document.getElementById('streak').textContent = `${streak} 🔥`;
+        }
+        
+        function nextNote() {
+            drawStaff();
+        }
+        
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            const keyMap = {
+                '1': 'C', '2': 'D', '3': 'E', '4': 'F',
+                '5': 'G', '6': 'A', '7': 'B',
+                'c': 'C', 'd': 'D', 'e': 'E', 'f': 'F',
+                'g': 'G', 'a': 'A', 'b': 'B'
+            };
+            
+            if (keyMap[e.key.toLowerCase()] && !answered) {
+                guess(keyMap[e.key.toLowerCase()]);
+            } else if ((e.key === ' ' || e.key === 'Enter') && answered) {
+                e.preventDefault();
+                nextNote();
+            }
+        });
+        
+        // Initialize
+        drawStaff();
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+Build a single-file fitness quick-logger web app (index.html) with these features:
+
+1. **Run Logger**: Fields for date, distance (miles), duration (mm:ss), avg HR, max HR, notes. Auto-calculates pace.
+2. **Strength Logger**: Date, exercises (name, sets x reps x weight), duration, notes.
+3. **Body Comp Logger**: Date, weight (lbs), body fat %, muscle mass, BMI (all optional except date+weight).
+4. **Log Viewer**: Shows all logged entries in reverse chronological order, grouped by type.
+5. **Export**: Button to export all data as markdown matching this format:
+
+```
+### Run - Jan 28
+- Distance: 3.11 mi
+- Duration: 28:45
+- Pace: 9:15/mi
+- Avg HR: 148 | Max HR: 167
+- Notes: Easy pace
+```
+
+Design requirements:
+- Dark theme, mobile-first (Charles logs from his phone)
+- Clean, minimal UI with tabs for each logger type
+- Data stored in localStorage (persists between sessions)
+- No external dependencies — pure HTML/CSS/JS
+- Color scheme: dark gray background (#1a1a2e), accent blue (#0f3460), highlight cyan (#16c79a)
+- Smooth animations on tab switches
+- Big touch-friendly buttons and inputs
+
+Make it look GOOD. This is for a guy who was a professional mechanic — clean, functional, no BS.

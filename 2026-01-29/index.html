@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>FitLog</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1a1a2e;--surface:#16213e;--card:#0f3460;--accent:#16c79a;--text:#e8e8e8;--muted:#8892a4;--danger:#e74c3c;--radius:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:80px}
+.header{background:var(--surface);padding:16px 20px;text-align:center;border-bottom:2px solid var(--card)}
+.header h1{font-size:1.4rem;font-weight:700;letter-spacing:1px}
+.header h1 span{color:var(--accent)}
+.tabs{display:flex;background:var(--surface);padding:8px;gap:4px;position:sticky;top:0;z-index:10}
+.tab{flex:1;padding:12px 8px;border:none;background:transparent;color:var(--muted);font-size:.85rem;font-weight:600;border-radius:var(--radius);cursor:pointer;transition:all .2s}
+.tab.active{background:var(--card);color:var(--accent)}
+.tab:active{transform:scale(.96)}
+.panel{display:none;padding:16px;animation:fadeIn .3s ease}
+.panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+input,select,textarea{width:100%;padding:14px;background:var(--surface);border:1px solid var(--card);border-radius:var(--radius);color:var(--text);font-size:1rem;outline:none;transition:border .2s}
+input:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px}
+.row{display:flex;gap:10px}
+.row .form-group{flex:1}
+.btn{display:block;width:100%;padding:16px;border:none;border-radius:var(--radius);font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s;margin-top:10px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:var(--bg)}
+.btn-outline{background:transparent;border:2px solid var(--accent);color:var(--accent);margin-top:6px}
+.btn-danger{background:transparent;border:2px solid var(--danger);color:var(--danger);margin-top:6px}
+.entry{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:10px;border-left:3px solid var(--accent);animation:fadeIn .3s ease}
+.entry .type{font-size:.7rem;text-transform:uppercase;color:var(--accent);font-weight:700;letter-spacing:1px}
+.entry .date{font-size:.85rem;color:var(--muted);margin-top:2px}
+.entry .details{margin-top:8px;font-size:.9rem;line-height:1.5}
+.entry .details span{color:var(--muted)}
+.entry .notes{color:var(--muted);font-style:italic;margin-top:4px;font-size:.85rem}
+.entry .del-btn{float:right;background:none;border:none;color:var(--danger);cursor:pointer;font-size:.8rem;opacity:.5}
+.entry .del-btn:hover{opacity:1}
+.empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:.95rem}
+.exercise-block{background:var(--card);border-radius:8px;padding:10px;margin-bottom:8px}
+.exercise-block .row{margin-bottom:6px}
+.add-exercise{background:transparent;border:1px dashed var(--muted);color:var(--muted);padding:10px;border-radius:8px;width:100%;cursor:pointer;font-size:.85rem;margin-bottom:10px}
+.add-exercise:hover{border-color:var(--accent);color:var(--accent)}
+.stat-card{background:var(--surface);border-radius:var(--radius);padding:14px;text-align:center;flex:1}
+.stat-card .val{font-size:1.5rem;font-weight:700;color:var(--accent)}
+.stat-card .lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;margin-top:2px}
+.export-box{background:var(--surface);border-radius:var(--radius);padding:14px;margin-top:12px;font-family:monospace;font-size:.8rem;white-space:pre-wrap;max-height:400px;overflow-y:auto;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--accent);color:var(--bg);padding:12px 24px;border-radius:var(--radius);font-weight:600;transition:transform .3s ease;z-index:100}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="header"><h1>⚡ Fit<span>Log</span></h1></div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="run">🏃 Run</button>
+  <button class="tab" data-tab="strength">🏋️ Lift</button>
+  <button class="tab" data-tab="body">⚖️ Body</button>
+  <button class="tab" data-tab="log">📋 Log</button>
+</div>
+
+<!-- RUN -->
+<div class="panel active" id="run">
+  <div class="form-group"><label>Date</label><input type="date" id="r-date"></div>
+  <div class="row">
+    <div class="form-group"><label>Distance (mi)</label><input type="number" step="0.01" id="r-dist" placeholder="3.11"></div>
+    <div class="form-group"><label>Duration (mm:ss)</label><input type="text" id="r-dur" placeholder="28:45"></div>
+  </div>
+  <div class="row">
+    <div class="form-group"><label>Avg HR</label><input type="number" id="r-avghr" placeholder="148"></div>
+    <div class="form-group"><label>Max HR</label><input type="number" id="r-maxhr" placeholder="167"></div>
+  </div>
+  <div class="form-group"><label>Notes</label><textarea id="r-notes" placeholder="Easy pace, felt good..."></textarea></div>
+  <button class="btn btn-primary" onclick="saveRun()">Log Run</button>
+</div>
+
+<!-- STRENGTH -->
+<div class="panel" id="strength">
+  <div class="form-group"><label>Date</label><input type="date" id="s-date"></div>
+  <div id="exercises"></div>
+  <button class="add-exercise" onclick="addExercise()">+ Add Exercise</button>
+  <div class="form-group"><label>Duration (min)</label><input type="number" id="s-dur" placeholder="45"></div>
+  <div class="form-group"><label>Notes</label><textarea id="s-notes" placeholder="Upper body day..."></textarea></div>
+  <button class="btn btn-primary" onclick="saveStrength()">Log Workout</button>
+</div>
+
+<!-- BODY COMP -->
+<div class="panel" id="body">
+  <div class="form-group"><label>Date</label><input type="date" id="b-date"></div>
+  <div class="row">
+    <div class="form-group"><label>Weight (lbs)</label><input type="number" step="0.1" id="b-weight" placeholder="185.0"></div>
+    <div class="form-group"><label>Body Fat %</label><input type="number" step="0.1" id="b-bf" placeholder="18.5"></div>
+  </div>
+  <div class="row">
+    <div class="form-group"><label>Muscle Mass</label><input type="number" step="0.1" id="b-muscle" placeholder="145.0"></div>
+    <div class="form-group"><label>BMI</label><input type="number" step="0.1" id="b-bmi" placeholder="24.5"></div>
+  </div>
+  <button class="btn btn-primary" onclick="saveBody()">Log Body Comp</button>
+</div>
+
+<!-- LOG VIEW -->
+<div class="panel" id="log">
+  <div class="row" style="margin-bottom:14px;gap:8px">
+    <div class="stat-card"><div class="val" id="st-runs">0</div><div class="lbl">Runs</div></div>
+    <div class="stat-card"><div class="val" id="st-miles">0</div><div class="lbl">Miles</div></div>
+    <div class="stat-card"><div class="val" id="st-lifts">0</div><div class="lbl">Lifts</div></div>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:12px">
+    <button class="tab active" data-filter="all" style="flex:1;padding:8px;font-size:.8rem" onclick="filterLog('all',this)">All</button>
+    <button class="tab" data-filter="run" style="flex:1;padding:8px;font-size:.8rem" onclick="filterLog('run',this)">Runs</button>
+    <button class="tab" data-filter="strength" style="flex:1;padding:8px;font-size:.8rem" onclick="filterLog('strength',this)">Lifts</button>
+    <button class="tab" data-filter="body" style="flex:1;padding:8px;font-size:.8rem" onclick="filterLog('body',this)">Body</button>
+  </div>
+  <div id="entries"></div>
+  <button class="btn btn-outline" onclick="exportMD()">📋 Export Markdown</button>
+  <button class="btn btn-danger" onclick="if(confirm('Clear all data?')){localStorage.removeItem('fitlog');loadLog();toast('Cleared')}">🗑️ Clear All</button>
+  <div class="export-box" id="export-box" style="display:none"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const today=()=>new Date().toISOString().split('T')[0];
+const getData=()=>JSON.parse(localStorage.getItem('fitlog')||'[]');
+const setData=d=>localStorage.setItem('fitlog',JSON.stringify(d));
+
+// Init dates
+document.querySelectorAll('input[type=date]').forEach(i=>i.value=today());
+
+// Tabs
+document.querySelectorAll('.tabs>.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs>.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  $(t.dataset.tab).classList.add('active');
+  if(t.dataset.tab==='log')loadLog();
+}));
+
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+
+function calcPace(dist,dur){
+  const p=dur.split(':');if(p.length!==2)return'--';
+  const secs=parseInt(p[0])*60+parseInt(p[1]);
+  const ppm=secs/dist;
+  return Math.floor(ppm/60)+':'+String(Math.round(ppm%60)).padStart(2,'0')+'/mi';
+}
+
+function saveRun(){
+  const d=getData();
+  const dist=parseFloat($('r-dist').value);
+  const dur=$('r-dur').value.trim();
+  if(!dist||!dur){toast('Need distance & duration');return}
+  d.push({type:'run',date:$('r-date').value,dist,dur,pace:calcPace(dist,dur),avghr:$('r-avghr').value,maxhr:$('r-maxhr').value,notes:$('r-notes').value});
+  setData(d);toast('Run logged! 🏃');
+  $('r-dist').value='';$('r-dur').value='';$('r-avghr').value='';$('r-maxhr').value='';$('r-notes').value='';
+}
+
+let exCount=0;
+function addExercise(){
+  const id=exCount++;
+  const div=document.createElement('div');div.className='exercise-block';div.id='ex-'+id;
+  div.innerHTML=`<div class="row"><div class="form-group" style="flex:2"><input placeholder="Exercise name" class="ex-name"></div><div class="form-group" style="flex:1"><input placeholder="3x10x135" class="ex-detail"></div></div>`;
+  $('exercises').appendChild(div);
+}
+addExercise();
+
+function saveStrength(){
+  const exs=[...document.querySelectorAll('.exercise-block')].map(b=>({name:b.querySelector('.ex-name').value,detail:b.querySelector('.ex-detail').value})).filter(e=>e.name);
+  if(!exs.length){toast('Add at least one exercise');return}
+  const d=getData();
+  d.push({type:'strength',date:$('s-date').value,exercises:exs,dur:$('s-dur').value,notes:$('s-notes').value});
+  setData(d);toast('Workout logged! 🏋️');
+  $('exercises').innerHTML='';exCount=0;addExercise();$('s-dur').value='';$('s-notes').value='';
+}
+
+function saveBody(){
+  const w=parseFloat($('b-weight').value);
+  if(!w){toast('Need weight');return}
+  const d=getData();
+  d.push({type:'body',date:$('b-date').value,weight:w,bf:$('b-bf').value,muscle:$('b-muscle').value,bmi:$('b-bmi').value});
+  setData(d);toast('Body comp logged! ⚖️');
+  $('b-weight').value='';$('b-bf').value='';$('b-muscle').value='';$('b-bmi').value='';
+}
+
+let currentFilter='all';
+function filterLog(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('[data-filter]').forEach(x=>x.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  loadLog();
+}
+
+function loadLog(){
+  const d=getData().filter(e=>currentFilter==='all'||e.type===currentFilter);
+  d.sort((a,b)=>b.date.localeCompare(a.date));
+  const all=getData();
+  const runs=all.filter(e=>e.type==='run');
+  $('st-runs').textContent=runs.length;
+  $('st-miles').textContent=runs.reduce((s,e)=>s+e.dist,0).toFixed(1);
+  $('st-lifts').textContent=all.filter(e=>e.type==='strength').length;
+  
+  if(!d.length){$('entries').innerHTML='<div class="empty">No entries yet. Go log something! 💪</div>';return}
+  $('entries').innerHTML=d.map((e,i)=>{
+    const idx=getData().indexOf(e);
+    const fmtDate=new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    let html=`<div class="entry"><button class="del-btn" onclick="delEntry(${getData().indexOf(e)})">✕</button><div class="type">${e.type==='run'?'🏃 Run':e.type==='strength'?'🏋️ Strength':'⚖️ Body Comp'}</div><div class="date">${fmtDate}</div><div class="details">`;
+    if(e.type==='run'){
+      html+=`${e.dist} mi · ${e.dur} · <span>Pace:</span> ${e.pace}`;
+      if(e.avghr)html+=`<br><span>HR:</span> ${e.avghr} avg${e.maxhr?' / '+e.maxhr+' max':''}`;
+    }else if(e.type==='strength'){
+      html+=e.exercises.map(x=>`${x.name}: ${x.detail}`).join('<br>');
+      if(e.dur)html+=`<br><span>Duration:</span> ${e.dur} min`;
+    }else{
+      html+=`${e.weight} lbs`;
+      if(e.bf)html+=` · ${e.bf}% BF`;
+      if(e.muscle)html+=` · ${e.muscle} muscle`;
+      if(e.bmi)html+=` · BMI ${e.bmi}`;
+    }
+    html+=`</div>`;
+    if(e.notes)html+=`<div class="notes">${e.notes}</div>`;
+    html+=`</div>`;return html;
+  }).join('');
+}
+
+function delEntry(i){const d=getData();d.splice(i,1);setData(d);loadLog();toast('Deleted')}
+
+function exportMD(){
+  const d=getData();d.sort((a,b)=>b.date.localeCompare(a.date));
+  let md='# Fitness Log\n\n';
+  d.forEach(e=>{
+    const fmtDate=new Date(e.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    if(e.type==='run'){
+      md+=`### Run - ${fmtDate}\n- Distance: ${e.dist} mi\n- Duration: ${e.dur}\n- Pace: ${e.pace}\n`;
+      if(e.avghr)md+=`- Avg HR: ${e.avghr}${e.maxhr?' | Max HR: '+e.maxhr:''}\n`;
+    }else if(e.type==='strength'){
+      md+=`### Strength - ${fmtDate}\n`;
+      e.exercises.forEach(x=>md+=`- ${x.name}: ${x.detail}\n`);
+      if(e.dur)md+=`- Duration: ${e.dur} min\n`;
+    }else{
+      md+=`### Body Comp - ${fmtDate}\n- Weight: ${e.weight} lbs\n`;
+      if(e.bf)md+=`- Body Fat: ${e.bf}%\n`;
+      if(e.muscle)md+=`- Muscle Mass: ${e.muscle}\n`;
+      if(e.bmi)md+=`- BMI: ${e.bmi}\n`;
+    }
+    if(e.notes)md+=`- Notes: ${e.notes}\n`;
+    md+='\n';
+  });
+  const box=$('export-box');box.style.display='block';box.textContent=md;
+  navigator.clipboard?.writeText(md).then(()=>toast('Copied! 📋')).catch(()=>toast('Exported below'));
+}
+</script>
+</body>
+</html>
